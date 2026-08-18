@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sao Mai Hotel Revenue</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">✦</div><div><b>SAO MAI</b><span>HOTEL REVENUE</span></div></div>
+      <nav id="nav">
+        <button class="nav-item active" data-view="dashboard">⌂ <span>Dashboard</span></button>
+        <button class="nav-item" data-view="stays">▣ <span>Khách đang ở</span></button>
+        <button class="nav-item" data-view="new-stay">＋ <span>Tạo lưu trú</span></button>
+        <button class="nav-item" data-view="daily-report">▤ <span>Doanh thu theo ngày</span></button>
+        <button class="nav-item" data-view="services">◈ <span>Dịch vụ phát sinh</span></button>
+        <button class="nav-item" data-view="month-report">▥ <span>Báo cáo tháng</span></button>
+      </nav>
+      <div class="sidebar-note"><b>Quy tắc V1</b><span>Giá tháng tự chia 28/29/30/31 ngày. Checkout sớm có Adjustment ngày cuối.</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><h1 id="page-title">Dashboard</h1><p id="page-subtitle">Tổng quan doanh thu khách sạn</p></div>
+        <div class="top-actions"><label>Ngày <input id="global-date" type="date" /></label><button class="btn gold" id="refresh-btn">Làm mới</button></div>
+      </header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="kpi-grid">
+          <article class="kpi"><span>Doanh thu phòng gộp</span><strong id="kpi-room">0 đ</strong><small>Gồm phần tách điểm tâm</small></article>
+          <article class="kpi"><span>DTKS thuần</span><strong id="kpi-net-room">0 đ</strong><small>Sau khi tách điểm tâm</small></article>
+          <article class="kpi"><span>Điểm tâm</span><strong id="kpi-breakfast">0 đ</strong><small>Chuyển doanh thu nhà hàng</small></article>
+          <article class="kpi"><span>Dịch vụ khác</span><strong id="kpi-service">0 đ</strong><small>Minibar, laundry, restaurant...</small></article>
+          <article class="kpi"><span>Tổng doanh thu hôm nay</span><strong id="kpi-total">0 đ</strong><small id="kpi-adjustment">Điều chỉnh: 0 đ</small></article>
+        </div>
+
+        <div class="dash-grid">
+          <article class="card chart-card"><div class="card-head"><h3>Doanh thu 7 ngày gần nhất</h3></div><div id="mini-chart" class="bars"></div></article>
+          <article class="card"><div class="card-head"><h3>Lũy kế tháng</h3></div><div class="month-box"><span>Doanh thu phòng gộp</span><b id="month-room">0 đ</b><span>Dịch vụ khác</span><b id="month-service">0 đ</b><span>Tổng doanh thu</span><strong id="month-total">0 đ</strong></div></article>
+        </div>
+
+        <article class="card"><div class="card-head"><h3>Khách đang ở / hợp đồng dài hạn</h3><button class="link-btn" data-go="stays">Xem tất cả</button></div><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Loại giá</th><th>Ngày đến</th><th>Dự kiến đi</th><th>Giá HĐ</th><th>Giá ngày fallback</th></tr></thead><tbody id="dash-stays"></tbody></table></div></article>
+      </section>
+
+      <section class="view" id="view-new-stay">
+        <article class="card form-card"><div class="card-head"><div><h3>Tạo lưu trú / hợp đồng</h3><p>Nhập một lần, hệ thống tự kéo doanh thu hằng ngày.</p></div></div>
+          <form id="stay-form" class="grid-form">
+            <label>Tên khách *<input name="guest_name" required /></label>
+            <label>Công ty<input name="company_name" /></label>
+            <label>Số phòng *<input name="room_no" required /></label>
+            <label>Loại phòng<input name="room_type" placeholder="Deluxe / Superior / Suite Villa..." /></label>
+            <label>Ngày check-in *<input name="check_in_date" type="date" required /></label>
+            <label>Ngày dự kiến checkout<input name="expected_check_out_date" type="date" /></label>
+            <label>Hình thức giá<select name="pricing_plan"><option value="monthly">Giá tháng</option><option value="daily">Giá ngày</option><option value="yearly">Giá năm</option></select></label>
+            <label>Giá hợp đồng (đ) *<input name="contract_rate" type="number" min="0" required /></label>
+            <label>Cách phân bổ<select name="allocation_method"><option value="actual_month_days">Theo ngày thực tế tháng (28/29/30/31)</option><option value="fixed_30">Cố định chia 30 ngày</option><option value="fixed_365">Năm chia 365 ngày</option></select></label>
+            <label>Giá ngày fallback (đ)<input name="fallback_daily_rate" type="number" min="0" placeholder="Dùng khi checkout sớm" /></label>
+            <label>Số khách ăn sáng<input name="breakfast_guests" type="number" min="0" value="0" /></label>
+            <label>Giá điểm tâm/người<input name="breakfast_rate" type="number" min="0" value="100000" /></label>
+            <label>Thanh toán<select name="payment_method"><option value="">Chưa chọn</option><option>Tiền mặt</option><option>Cà thẻ/CK</option><option>Công nợ</option><option>Trả trước/Đặt cọc</option></select></label>
+            <label class="span2">Ghi chú<textarea name="note" rows="3"></textarea></label>
+            <div class="span2 form-actions"><button class="btn primary" type="submit">Lưu lưu trú</button><button class="btn ghost" type="reset">Nhập lại</button></div>
+          </form>
+        </article>
+      </section>
+
+      <section class="view" id="view-stays">
+        <article class="card"><div class="card-head"><div><h3>Danh sách lưu trú</h3><p>Khách ngày, tháng, năm và lịch sử checkout.</p></div><div class="filters"><input id="stay-search" placeholder="Tìm phòng / khách / công ty..."/><select id="stay-status"><option value="active">Đang ở</option><option value="checked_out">Đã checkout</option><option value="">Tất cả</option></select><button class="btn ghost" id="stay-refresh">Làm mới</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Phòng</th><th>Khách/Công ty</th><th>Giá</th><th>Check-in</th><th>Dự kiến</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="stays-body"></tbody></table></div>
+        </article>
+      </section>
+
+      <section class="view" id="view-services">
+        <div class="two-col">
+          <article class="card form-card"><div class="card-head"><h3>Ghi nhận dịch vụ phát sinh</h3></div><form id="service-form" class="grid-form one">
+            <label>Ngày<input name="service_date" type="date" required /></label>
+            <label>Mã lưu trú / ID<input name="stay_id" type="number" min="1" placeholder="Có thể bỏ trống" /></label>
+            <label>Số phòng<input name="room_no" /></label>
+            <label>Loại dịch vụ<select name="category"><option value="minibar">Minibar</option><option value="laundry">Laundry</option><option value="restaurant">Restaurant</option><option value="extra_bed">Extra Bed</option><option value="others">Khác</option></select></label>
+            <label>Số tiền (đ)<input name="amount" type="number" min="1" required /></label>
+            <label>Thanh toán<select name="payment_method"><option value="">Chưa chọn</option><option>Tiền mặt</option><option>Cà thẻ/CK</option><option>Công nợ</option></select></label>
+            <label>Ghi chú<textarea name="note" rows="3"></textarea></label><button class="btn primary" type="submit">Ghi nhận</button>
+          </form></article>
+          <article class="card"><div class="card-head"><h3>Dịch vụ trong ngày</h3></div><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Loại</th><th>Số tiền</th><th>Ghi chú</th></tr></thead><tbody id="service-list"></tbody></table></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="view-daily-report">
+        <article class="card"><div class="card-head"><div><h3>Báo cáo doanh thu ngày</h3><p>Không sửa ngược ngày đã chốt. Chênh lệch checkout đưa vào Adjustment.</p></div><div class="filters"><input id="report-date" type="date"/><button class="btn ghost" id="load-daily">Xem</button><button class="btn gold" id="export-daily">Xuất CSV</button></div></div>
+          <div class="report-kpis"><div><span>DTKS</span><b id="r-net">0 đ</b></div><div><span>Điểm tâm</span><b id="r-breakfast">0 đ</b></div><div><span>Adjustment</span><b id="r-adj">0 đ</b></div><div><span>Dịch vụ khác</span><b id="r-svc">0 đ</b></div><div><span>Tổng</span><strong id="r-total">0 đ</strong></div></div>
+          <div id="closing-badge" class="closing-badge hidden"></div>
+          <div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Loại phòng</th><th>Dòng</th><th>Phân bổ gộp</th><th>Điểm tâm</th><th>DTKS</th><th>Ghi chú</th></tr></thead><tbody id="daily-body"></tbody></table></div>
+          <div class="close-panel"><input id="closed-by" placeholder="Người chốt báo cáo"/><input id="close-pin" type="password" placeholder="PIN quản lý"/><button class="btn danger" id="close-day-btn">Chốt ngày</button></div>
+        </article>
+      </section>
+
+      <section class="view" id="view-month-report">
+        <article class="card"><div class="card-head"><div><h3>Báo cáo tháng</h3><p>Lũy kế doanh thu theo ngày.</p></div><div class="filters"><input id="month-input" type="month"/><button class="btn ghost" id="load-month">Xem</button></div></div>
+          <div class="report-kpis"><div><span>Phòng gộp</span><b id="m-room">0 đ</b></div><div><span>DTKS</span><b id="m-net">0 đ</b></div><div><span>Điểm tâm</span><b id="m-breakfast">0 đ</b></div><div><span>Dịch vụ</span><b id="m-svc">0 đ</b></div><div><span>Tổng</span><strong id="m-total">0 đ</strong></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Phòng gộp</th><th>DTKS</th><th>Điểm tâm</th><th>Adjustment</th><th>Dịch vụ khác</th><th>Tổng ngày</th></tr></thead><tbody id="month-body"></tbody></table></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="checkout-dialog">
+    <form method="dialog" id="checkout-form" class="dialog-card">
+      <div class="card-head"><div><h3>Checkout & quyết toán</h3><p id="checkout-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>
+      <input type="hidden" name="stay_id" />
+      <label>Ngày checkout<input name="actual_check_out_date" type="date" required /></label>
+      <label>Cách quyết toán<select name="settlement_mode" id="settlement-mode"><option value="contract">Giữ doanh thu đã kéo theo hợp đồng</option><option value="fallback_daily">Chuyển sang giá ngày fallback</option><option value="custom_total">Nhập tổng quyết toán thực tế</option></select></label>
+      <label id="fallback-wrap">Giá ngày fallback<input name="fallback_daily_rate" type="number" min="0" /></label>
+      <label id="custom-wrap" class="hidden">Tổng quyết toán thực tế<input name="custom_total" type="number" min="0" /></label>
+      <div class="notice">Các ngày đã báo trước được giữ nguyên. Hệ thống chỉ tạo chênh lệch <b>Adjustment</b> vào ngày checkout.</div>
+      <div class="form-actions"><button class="btn primary" value="default" id="checkout-submit">Xác nhận checkout</button><button class="btn ghost" value="cancel">Hủy</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
