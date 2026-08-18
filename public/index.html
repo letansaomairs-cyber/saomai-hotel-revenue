@@ -32,7 +32,7 @@
           <article class="kpi"><span>Doanh thu phòng gộp</span><strong id="kpi-room">0 đ</strong><small>Gồm phần tách điểm tâm</small></article>
           <article class="kpi"><span>DTKS thuần</span><strong id="kpi-net-room">0 đ</strong><small>Sau khi tách điểm tâm</small></article>
           <article class="kpi"><span>Điểm tâm</span><strong id="kpi-breakfast">0 đ</strong><small>Chuyển doanh thu nhà hàng</small></article>
-          <article class="kpi"><span>Dịch vụ khác</span><strong id="kpi-service">0 đ</strong><small>Minibar, laundry, restaurant...</small></article>
+          <article class="kpi"><span>Vé & dịch vụ</span><strong id="kpi-service">0 đ</strong><small>Vé bơi, golf, tennis, minibar...</small></article>
           <article class="kpi"><span>Tổng doanh thu hôm nay</span><strong id="kpi-total">0 đ</strong><small id="kpi-adjustment">Điều chỉnh: 0 đ</small></article>
         </div>
 
@@ -78,28 +78,51 @@
             <label>Ngày<input name="service_date" type="date" required /></label>
             <label>Mã lưu trú / ID<input name="stay_id" type="number" min="1" placeholder="Có thể bỏ trống" /></label>
             <label>Số phòng<input name="room_no" /></label>
-            <label>Loại dịch vụ<select name="category"><option value="minibar">Minibar</option><option value="laundry">Laundry</option><option value="restaurant">Restaurant</option><option value="extra_bed">Extra Bed</option><option value="others">Khác</option></select></label>
-            <label>Số tiền (đ)<input name="amount" type="number" min="1" required /></label>
+            <label>Loại dịch vụ<select name="category" required>
+              <optgroup label="Vé bơi ngày">
+                <option value="pool_vbn">VBN</option>
+                <option value="pool_vbl">VBL</option>
+                <option value="pool_vbt_large">VBT lớn</option>
+                <option value="pool_vbt_small">VBT nhỏ</option>
+              </optgroup>
+              <optgroup label="Thể thao & vé khác">
+                <option value="golf_ticket">Vé Golf</option>
+                <option value="swim_lesson">Vé học bơi</option>
+                <option value="gym_month">Vé Gym tháng</option>
+                <option value="tennis_day">Tennis ngày</option>
+              </optgroup>
+              <optgroup label="Dịch vụ khách sạn">
+                <option value="minibar">Minibar</option>
+                <option value="laundry">Laundry</option>
+                <option value="restaurant">Restaurant</option>
+                <option value="extra_bed">Extra Bed</option>
+                <option value="others">Khác</option>
+              </optgroup>
+            </select></label>
+            <label>Số lượng<input name="quantity" type="number" min="0.01" step="0.01" value="1" required /></label>
+            <label>Đơn giá (đ)<input name="unit_price" type="number" min="0" step="1" required /></label>
+            <label>Thành tiền (đ)<input name="amount" type="number" min="0" readonly /></label>
             <label>Thanh toán<select name="payment_method"><option value="">Chưa chọn</option><option>Tiền mặt</option><option>Cà thẻ/CK</option><option>Công nợ</option></select></label>
             <label>Ghi chú<textarea name="note" rows="3"></textarea></label><button class="btn primary" type="submit">Ghi nhận</button>
           </form></article>
-          <article class="card"><div class="card-head"><h3>Dịch vụ trong ngày</h3></div><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Loại</th><th>Số tiền</th><th>Ghi chú</th></tr></thead><tbody id="service-list"></tbody></table></div></article>
+          <article class="card"><div class="card-head"><h3>Vé & dịch vụ trong ngày</h3></div><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Loại</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>Thanh toán</th><th>Ghi chú</th></tr></thead><tbody id="service-list"></tbody></table></div></article>
         </div>
       </section>
 
       <section class="view" id="view-daily-report">
         <article class="card"><div class="card-head"><div><h3>Báo cáo doanh thu ngày</h3><p>Không sửa ngược ngày đã chốt. Chênh lệch checkout đưa vào Adjustment.</p></div><div class="filters"><input id="report-date" type="date"/><button class="btn ghost" id="load-daily">Xem</button><button class="btn gold" id="export-daily">Xuất CSV</button></div></div>
-          <div class="report-kpis"><div><span>DTKS</span><b id="r-net">0 đ</b></div><div><span>Điểm tâm</span><b id="r-breakfast">0 đ</b></div><div><span>Adjustment</span><b id="r-adj">0 đ</b></div><div><span>Dịch vụ khác</span><b id="r-svc">0 đ</b></div><div><span>Tổng</span><strong id="r-total">0 đ</strong></div></div>
+          <div class="report-kpis six"><div><span>DTKS</span><b id="r-net">0 đ</b></div><div><span>Điểm tâm</span><b id="r-breakfast">0 đ</b></div><div><span>Adjustment</span><b id="r-adj">0 đ</b></div><div><span>Vé bơi</span><b id="r-pool">0 đ</b></div><div><span>Dịch vụ khác</span><b id="r-svc">0 đ</b></div><div><span>Tổng</span><strong id="r-total">0 đ</strong></div></div>
           <div id="closing-badge" class="closing-badge hidden"></div>
           <div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Loại phòng</th><th>Dòng</th><th>Phân bổ gộp</th><th>Điểm tâm</th><th>DTKS</th><th>Ghi chú</th></tr></thead><tbody id="daily-body"></tbody></table></div>
+          <div class="service-report-block"><h4>Doanh thu vé & dịch vụ trong ngày</h4><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Loại</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>Thanh toán</th><th>Ghi chú</th></tr></thead><tbody id="daily-services-body"></tbody></table></div></div>
           <div class="close-panel"><input id="closed-by" placeholder="Người chốt báo cáo"/><input id="close-pin" type="password" placeholder="PIN quản lý"/><button class="btn danger" id="close-day-btn">Chốt ngày</button></div>
         </article>
       </section>
 
       <section class="view" id="view-month-report">
         <article class="card"><div class="card-head"><div><h3>Báo cáo tháng</h3><p>Lũy kế doanh thu theo ngày.</p></div><div class="filters"><input id="month-input" type="month"/><button class="btn ghost" id="load-month">Xem</button></div></div>
-          <div class="report-kpis"><div><span>Phòng gộp</span><b id="m-room">0 đ</b></div><div><span>DTKS</span><b id="m-net">0 đ</b></div><div><span>Điểm tâm</span><b id="m-breakfast">0 đ</b></div><div><span>Dịch vụ</span><b id="m-svc">0 đ</b></div><div><span>Tổng</span><strong id="m-total">0 đ</strong></div></div>
-          <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Phòng gộp</th><th>DTKS</th><th>Điểm tâm</th><th>Adjustment</th><th>Dịch vụ khác</th><th>Tổng ngày</th></tr></thead><tbody id="month-body"></tbody></table></div>
+          <div class="report-kpis six"><div><span>Phòng gộp</span><b id="m-room">0 đ</b></div><div><span>DTKS</span><b id="m-net">0 đ</b></div><div><span>Điểm tâm</span><b id="m-breakfast">0 đ</b></div><div><span>Vé bơi</span><b id="m-pool">0 đ</b></div><div><span>Dịch vụ khác</span><b id="m-svc">0 đ</b></div><div><span>Tổng</span><strong id="m-total">0 đ</strong></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Phòng gộp</th><th>DTKS</th><th>Điểm tâm</th><th>Adjustment</th><th>Vé bơi</th><th>Dịch vụ khác</th><th>Tổng ngày</th></tr></thead><tbody id="month-body"></tbody></table></div>
         </article>
       </section>
     </main>

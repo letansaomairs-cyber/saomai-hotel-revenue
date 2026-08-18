@@ -53,7 +53,9 @@ CREATE TABLE IF NOT EXISTS services (
   stay_id INTEGER,
   service_date TEXT NOT NULL,
   room_no TEXT,
-  category TEXT NOT NULL, -- minibar | laundry | restaurant | extra_bed | others | breakfast
+  category TEXT NOT NULL, -- pool_vbn | pool_vbl | pool_vbt_large | pool_vbt_small | golf_ticket | swim_lesson | gym_month | tennis_day | minibar | laundry | restaurant | extra_bed | others
+  quantity REAL NOT NULL DEFAULT 1,
+  unit_price REAL NOT NULL DEFAULT 0,
   amount REAL NOT NULL DEFAULT 0,
   note TEXT,
   payment_method TEXT,

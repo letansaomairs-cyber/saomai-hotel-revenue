@@ -46,6 +46,18 @@ function splitGross(stay, gross) {
   return { breakfast: breakfastAmount, netRoom: gross - breakfastAmount };
 }
 
+const SERVICE_CATEGORIES = new Set(['pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small','golf_ticket','swim_lesson','gym_month','tennis_day','minibar','laundry','restaurant','extra_bed','others']);
+const POOL_CATEGORIES = ['pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small'];
+let serviceSchemaReady=false;
+async function ensureServiceSchema(env){
+  if(serviceSchemaReady) return;
+  const cols=(await env.DB.prepare('PRAGMA table_info(services)').all()).results||[];
+  const names=new Set(cols.map(c=>c.name));
+  if(!names.has('quantity')) await env.DB.prepare('ALTER TABLE services ADD COLUMN quantity REAL NOT NULL DEFAULT 1').run();
+  if(!names.has('unit_price')) await env.DB.prepare('ALTER TABLE services ADD COLUMN unit_price REAL NOT NULL DEFAULT 0').run();
+  serviceSchemaReady=true;
+}
+
 async function log(env, action, entityType, entityId, detail='') {
   try { await env.DB.prepare('INSERT INTO audit_log(action,entity_type,entity_id,detail,created_at) VALUES(?,?,?,?,?)').bind(action,entityType,String(entityId ?? ''),detail,nowISO()).run(); } catch {}
 }
@@ -90,12 +102,14 @@ async function dailySummary(env, date) {
       COALESCE(SUM(net_room_amount),0) room_net,
       COALESCE(SUM(amount),0) room_gross
     FROM daily_room_revenue WHERE revenue_date=?`).bind(date).first();
+  await ensureServiceSchema(env);
   const svc = await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
+      COALESCE(SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) pool_total,
+      COALESCE(SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) other_total,
       COALESCE(SUM(CASE WHEN category='minibar' THEN amount ELSE 0 END),0) minibar,
       COALESCE(SUM(CASE WHEN category='laundry' THEN amount ELSE 0 END),0) laundry,
       COALESCE(SUM(CASE WHEN category='restaurant' THEN amount ELSE 0 END),0) restaurant,
-      COALESCE(SUM(CASE WHEN category='extra_bed' THEN amount ELSE 0 END),0) extra_bed,
-      COALESCE(SUM(CASE WHEN category='others' THEN amount ELSE 0 END),0) others
+      COALESCE(SUM(CASE WHEN category='extra_bed' THEN amount ELSE 0 END),0) extra_bed
     FROM services WHERE service_date=?`).bind(date).first();
   const closing = await env.DB.prepare('SELECT * FROM day_closings WHERE report_date=?').bind(date).first();
   const total = num(room?.room_gross) + num(svc?.total);
@@ -112,7 +126,11 @@ async function monthSummary(env, ym) {
       COALESCE(SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END),0) adjustment,
       COALESCE(SUM(amount),0) room_gross
     FROM daily_room_revenue WHERE revenue_date BETWEEN ? AND ?`).bind(start,end).first();
-  const s = await env.DB.prepare('SELECT COALESCE(SUM(amount),0) service_total FROM services WHERE service_date BETWEEN ? AND ?').bind(start,end).first();
+  await ensureServiceSchema(env);
+  const s = await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) service_total,
+      COALESCE(SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) pool_total,
+      COALESCE(SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) other_total
+    FROM services WHERE service_date BETWEEN ? AND ?`).bind(start,end).first();
   const total = num(r?.room_gross)+num(s?.service_total);
   return { start,end, room:r||{}, services:s||{}, total };
 }
@@ -171,6 +189,18 @@ async function apiStayDetail(request, env, id) {
     await log(env,'update','stay',id,'Cập nhật thông tin lưu trú');
     return json({ok:true});
   }
+  if(request.method==='DELETE') {
+    if(!requirePin(request,env)) return json({error:'Sai PIN quản lý.'},401);
+    const closed = await env.DB.prepare(`SELECT dc.report_date FROM daily_room_revenue r JOIN day_closings dc ON dc.report_date=r.revenue_date WHERE r.stay_id=? LIMIT 1`).bind(id).first();
+    if(closed) return json({error:`Không thể xóa: lưu trú đã có doanh thu trong ngày ${closed.report_date} đã chốt.`},409);
+    const svcClosed = await env.DB.prepare(`SELECT dc.report_date FROM services sv JOIN day_closings dc ON dc.report_date=sv.service_date WHERE sv.stay_id=? LIMIT 1`).bind(id).first();
+    if(svcClosed) return json({error:`Không thể xóa: lưu trú có dịch vụ trong ngày ${svcClosed.report_date} đã chốt.`},409);
+    await log(env,'delete','stay',id,JSON.stringify({code:stay.code,guest_name:stay.guest_name,room_no:stay.room_no}));
+    await env.DB.prepare('DELETE FROM services WHERE stay_id=?').bind(id).run();
+    await env.DB.prepare('DELETE FROM daily_room_revenue WHERE stay_id=?').bind(id).run();
+    await env.DB.prepare('DELETE FROM stays WHERE id=?').bind(id).run();
+    return json({ok:true});
+  }
   return json({error:'Method not allowed'},405);
 }
 
@@ -204,6 +234,7 @@ async function apiCheckout(request, env, id) {
 }
 
 async function apiServices(request, env, url) {
+  await ensureServiceSchema(env);
   if(request.method==='GET') {
     const date=clean(url.searchParams.get('date'),10); const stayId=int(url.searchParams.get('stay_id'));
     let sql='SELECT s.*, st.guest_name FROM services s LEFT JOIN stays st ON st.id=s.stay_id WHERE 1=1'; const binds=[];
@@ -211,12 +242,14 @@ async function apiServices(request, env, url) {
     const rs=await env.DB.prepare(sql).bind(...binds).all(); return json({ok:true,rows:rs.results||[]});
   }
   if(request.method==='POST') {
-    const b=await request.json(); const date=clean(b.service_date,10), cat=clean(b.category,30);
-    if(!isDate(date)||!['minibar','laundry','restaurant','extra_bed','others'].includes(cat)||num(b.amount)<=0) return json({error:'Dữ liệu dịch vụ không hợp lệ.'},400);
+    const b=await request.json(); const date=clean(b.service_date,10), cat=clean(b.category,40);
+    const qty=Math.max(0,num(b.quantity,1)), unit=Math.max(0,num(b.unit_price));
+    const amount=Math.max(0,num(b.amount,qty*unit));
+    if(!isDate(date)||!SERVICE_CATEGORIES.has(cat)||qty<=0||unit<0||amount<=0) return json({error:'Dữ liệu vé/dịch vụ không hợp lệ.'},400);
     const stayId=int(b.stay_id)||null; let room=clean(b.room_no,30);
     if(stayId){const st=await getStay(env,stayId); if(st) room=st.room_no;}
-    const rs=await env.DB.prepare('INSERT INTO services(stay_id,service_date,room_no,category,amount,note,payment_method,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(stayId,date,room,cat,num(b.amount),clean(b.note,500),clean(b.payment_method,60),nowISO()).run();
-    await log(env,'create','service',rs.meta?.last_row_id,cat); return json({ok:true,id:rs.meta?.last_row_id});
+    const rs=await env.DB.prepare('INSERT INTO services(stay_id,service_date,room_no,category,quantity,unit_price,amount,note,payment_method,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(stayId,date,room,cat,qty,unit,amount,clean(b.note,500),clean(b.payment_method,60),nowISO()).run();
+    await log(env,'create','service',rs.meta?.last_row_id,JSON.stringify({cat,qty,unit,amount})); return json({ok:true,id:rs.meta?.last_row_id});
   }
   return json({error:'Method not allowed'},405);
 }
@@ -249,11 +282,14 @@ async function apiMonthReport(request, env, url) {
       SELECT revenue_date date, SUM(amount) room_gross, SUM(net_room_amount) room_net, SUM(breakfast_amount) breakfast,
       SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END) adjustment
       FROM daily_room_revenue WHERE revenue_date BETWEEN ? AND ? GROUP BY revenue_date),
-    s AS (SELECT service_date date,SUM(amount) service_total FROM services WHERE service_date BETWEEN ? AND ? GROUP BY service_date)
-    SELECT COALESCE(d.date,s.date) date,COALESCE(d.room_gross,0) room_gross,COALESCE(d.room_net,0) room_net,COALESCE(d.breakfast,0) breakfast,COALESCE(d.adjustment,0) adjustment,COALESCE(s.service_total,0) service_total
+    s AS (SELECT service_date date,SUM(amount) service_total,
+      SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END) pool_total,
+      SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END) other_service_total
+      FROM services WHERE service_date BETWEEN ? AND ? GROUP BY service_date)
+    SELECT COALESCE(d.date,s.date) date,COALESCE(d.room_gross,0) room_gross,COALESCE(d.room_net,0) room_net,COALESCE(d.breakfast,0) breakfast,COALESCE(d.adjustment,0) adjustment,COALESCE(s.service_total,0) service_total,COALESCE(s.pool_total,0) pool_total,COALESCE(s.other_service_total,0) other_service_total
     FROM d LEFT JOIN s ON s.date=d.date
     UNION ALL
-    SELECT s.date,0,0,0,0,s.service_total FROM s LEFT JOIN d ON d.date=s.date WHERE d.date IS NULL
+    SELECT s.date,0,0,0,0,s.service_total,s.pool_total,s.other_service_total FROM s LEFT JOIN d ON d.date=s.date WHERE d.date IS NULL
     ORDER BY date`).bind(summary.start,summary.end,summary.start,summary.end).all()).results||[];
   return json({ok:true,month:ym,summary,daily});
 }

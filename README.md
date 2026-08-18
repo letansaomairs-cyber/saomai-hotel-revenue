@@ -55,3 +55,10 @@ Ví dụ doanh thu đã báo 4.500.000đ, tổng đúng sau checkout là 7.000.0
 - tạo Adjustment `+2.500.000đ` vào ngày checkout.
 
 Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số âm.
+
+
+## V1.2 - Vé bơi & dịch vụ
+- Bổ sung VBN, VBL, VBT lớn, VBT nhỏ, Vé Golf, Vé học bơi, Vé Gym tháng, Tennis ngày.
+- Form dịch vụ có Số lượng, Đơn giá, Thành tiền.
+- Worker tự bổ sung cột quantity/unit_price vào D1 hiện tại ở lần gọi API dịch vụ đầu tiên.
+- Báo cáo ngày/tháng tách Vé bơi và Dịch vụ khác.
