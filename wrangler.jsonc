@@ -11,7 +11,7 @@
     {
       "binding": "DB",
       "database_name": "saomai-hotel-revenue-db",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_id": "af584e1e-c41e-4151-82ff-5ebf90e81d51"
     }
   ]
 }
