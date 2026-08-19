@@ -62,3 +62,8 @@ Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số â
 - Form dịch vụ có Số lượng, Đơn giá, Thành tiền.
 - Worker tự bổ sung cột quantity/unit_price vào D1 hiện tại ở lần gọi API dịch vụ đầu tiên.
 - Báo cáo ngày/tháng tách Vé bơi và Dịch vụ khác.
+
+
+## V1.5.1
+- Fix hiển thị dấu tiếng Việt ở tiêu đề bằng font hệ thống hỗ trợ tiếng Việt tốt hơn.
+- Chuẩn hóa toàn bộ source text sang UTF-8 NFC.
