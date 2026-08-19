@@ -24,7 +24,7 @@
     <main class="main">
       <header class="topbar">
         <div><h1 id="page-title">Dashboard</h1><p id="page-subtitle">Tổng quan doanh thu khách sạn</p></div>
-        <div class="top-actions"><label>Ngày <input id="global-date" type="date" /></label><button class="btn gold" id="refresh-btn">Làm mới</button></div>
+        <div class="top-actions"><label>Ngày <input id="global-date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" /></label><button class="btn gold" id="refresh-btn">Làm mới</button></div>
       </header>
 
       <section class="view active" id="view-dashboard">
@@ -51,8 +51,8 @@
             <label>Công ty<input name="company_name" /></label>
             <label>Số phòng *<input name="room_no" required /></label>
             <label>Loại phòng<input name="room_type" placeholder="Deluxe / Superior / Suite Villa..." /></label>
-            <label>Ngày check-in *<input name="check_in_date" type="date" required /></label>
-            <label>Ngày dự kiến checkout<input name="expected_check_out_date" type="date" /></label>
+            <label>Ngày check-in *<input name="check_in_date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" required /></label>
+            <label>Ngày dự kiến checkout<input name="expected_check_out_date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" /></label>
             <label>Hình thức giá<select name="pricing_plan"><option value="monthly">Giá tháng</option><option value="daily">Giá ngày</option><option value="yearly">Giá năm</option></select></label>
             <label>Giá hợp đồng (đ) *<input name="contract_rate" type="number" min="0" required /></label>
             <label>Cách phân bổ<select name="allocation_method"><option value="actual_month_days">Theo ngày thực tế tháng (28/29/30/31)</option><option value="fixed_30">Cố định chia 30 ngày</option><option value="fixed_365">Năm chia 365 ngày</option></select></label>
@@ -61,7 +61,7 @@
             <label>Giá điểm tâm/người<input name="breakfast_rate" type="number" min="0" value="100000" /></label>
             <label>Trạng thái thanh toán<select name="payment_method"><option value="Công nợ">Công nợ / Chưa thanh toán</option><option value="Đã thanh toán">Đã thanh toán</option></select></label>
             <label>Thu tiền / Cọc ban đầu (đ)<input name="initial_payment_amount" type="number" min="0" value="0" /></label>
-            <label>Ngày thu/cọc<input name="initial_payment_date" type="date" /></label>
+            <label>Ngày thu/cọc<input name="initial_payment_date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" /></label>
             <label>Loại thu<select name="initial_payment_kind"><option value="deposit">Cọc</option><option value="payment">Thanh toán trong thời gian ở</option><option value="debt_payment">Thanh toán công nợ</option></select></label>
             <label>Phương thức<select name="initial_payment_method"><option value="cash">Tiền mặt</option><option value="transfer">Chuyển khoản</option><option value="card">Thẻ</option></select></label>
             <label class="span2">Ghi chú thu/cọc<input name="initial_payment_note" placeholder="Mã giao dịch / người nhận / ghi chú..." /></label>
@@ -80,7 +80,7 @@
       <section class="view" id="view-services">
         <div class="two-col">
           <article class="card form-card"><div class="card-head"><h3>Ghi nhận dịch vụ phát sinh</h3></div><form id="service-form" class="grid-form one">
-            <label>Ngày<input name="service_date" type="date" required /></label>
+            <label>Ngày<input name="service_date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" required /></label>
             <label>Mã lưu trú / ID<input name="stay_id" type="number" min="1" placeholder="Có thể bỏ trống" /></label>
             <label>Số phòng<input name="room_no" /></label>
             <label>Loại dịch vụ<select name="category" required>
@@ -115,7 +115,7 @@
       </section>
 
       <section class="view" id="view-daily-report">
-        <article class="card"><div class="card-head"><div><h3>Báo cáo doanh thu ngày</h3><p>Không sửa ngược ngày đã chốt. Chênh lệch checkout đưa vào Adjustment.</p></div><div class="filters"><input id="report-date" type="date"/><select id="report-room-type"><option value="">Tất cả hạng phòng</option><option>Family Villa</option><option>Suite Villa</option><option>Deluxe</option><option>Superior</option><option>Standard B</option><option>Standard A</option><option>Sweety room</option></select><button class="btn ghost" id="load-daily">Xem</button><button class="btn gold" id="export-daily">Xuất CSV</button></div></div>
+        <article class="card"><div class="card-head"><div><h3>Báo cáo doanh thu ngày</h3><p>Không sửa ngược ngày đã chốt. Chênh lệch checkout đưa vào Adjustment.</p></div><div class="filters"><input id="report-date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn"/><select id="report-room-type"><option value="">Tất cả hạng phòng</option><option>Family Villa</option><option>Suite Villa</option><option>Deluxe</option><option>Superior</option><option>Standard B</option><option>Standard A</option><option>Sweety room</option></select><button class="btn ghost" id="load-daily">Xem</button><button class="btn gold" id="export-daily">Xuất CSV</button></div></div>
           <div class="report-kpis six"><div><span>DTKS</span><b id="r-net">0 đ</b></div><div><span>Điểm tâm</span><b id="r-breakfast">0 đ</b></div><div><span>Adjustment</span><b id="r-adj">0 đ</b></div><div><span>Vé bơi</span><b id="r-pool">0 đ</b></div><div><span>Dịch vụ khác</span><b id="r-svc">0 đ</b></div><div><span>Tổng</span><strong id="r-total">0 đ</strong></div></div>
           <div id="closing-badge" class="closing-badge hidden"></div>
           <div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Loại phòng</th><th>Dòng</th><th>Phân bổ gộp</th><th>Điểm tâm</th><th>DTKS</th><th>Ghi chú</th></tr></thead><tbody id="daily-body"></tbody></table></div>
@@ -137,7 +137,7 @@
     <form method="dialog" id="transfer-form" class="dialog-card">
       <div class="card-head"><div><h3>Chuyển phòng</h3><p id="transfer-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>
       <input type="hidden" name="stay_id" />
-      <label>Ngày chuyển phòng<input name="transfer_date" type="date" required /></label>
+      <label>Ngày chuyển phòng<input name="transfer_date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" required /></label>
       <label>Phòng mới<input name="new_room_no" placeholder="Ví dụ: 705" required /></label>
       <label>Hạng phòng mới<select name="new_room_type" required>
         <option value="">-- Chọn hạng phòng --</option>
@@ -155,7 +155,7 @@
     <form method="dialog" id="checkout-form" class="dialog-card">
       <div class="card-head"><div><h3>Checkout & quyết toán</h3><p id="checkout-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>
       <input type="hidden" name="stay_id" />
-      <label>Ngày checkout<input name="actual_check_out_date" type="date" required /></label>
+      <label>Ngày checkout<input name="actual_check_out_date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" class="date-vn" required /></label>
       <label>Cách quyết toán<select name="settlement_mode" id="settlement-mode"><option value="contract">Giữ doanh thu đã kéo theo hợp đồng</option><option value="fallback_daily">Chuyển sang giá ngày fallback</option><option value="custom_total">Nhập tổng quyết toán thực tế</option></select></label>
       <label id="fallback-wrap">Giá ngày fallback<input name="fallback_daily_rate" type="number" min="0" /></label>
       <label id="custom-wrap" class="hidden">Tổng quyết toán thực tế<input name="custom_total" type="number" min="0" /></label>
