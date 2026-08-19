@@ -76,3 +76,12 @@ Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số â
 - Mỗi chặng dùng giá hợp đồng của hạng phòng tương ứng.
 - Báo cáo ngày lưu snapshot phòng/hạng phòng nên ngày cũ vẫn nằm đúng hạng phòng cũ sau khi khách chuyển phòng.
 - Worker tự tạo bảng `stay_segments` và bổ sung các cột snapshot cần thiết; không cần chạy SQL thủ công.
+
+## V1.7 – Front Office Payment & Checkout Flow
+- Ngày dự kiến checkout là tùy chọn; để trống thì khách tiếp tục ở và doanh thu tiếp tục chạy.
+- Nút Thu tiền ngay trên hồ sơ đang ở, không nhập lại khách.
+- Lịch sử thanh toán + Phát sinh / Đã thu / Còn phải thu.
+- Cọc thêm / Thanh toán trong thời gian ở; Tiền mặt / Chuyển khoản / Thẻ.
+- In bill sau mỗi lần thu.
+- Checkout có quyết toán và DailyPayment.
+- Sau checkout, lễ tân không ghi nhận thêm khoản thu.

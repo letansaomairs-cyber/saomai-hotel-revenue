@@ -19,3 +19,10 @@ html,body,input,button,select,textarea{font-synthesis:none;text-rendering:optimi
 .native-date-source{position:absolute!important;right:42px;top:50%;width:2px!important;height:2px!important;opacity:.01!important;padding:0!important;border:0!important;pointer-events:none!important}
 .date-picker-btn{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;cursor:pointer;font-size:18px;color:#111;display:grid;place-items:center;border-radius:8px}
 .date-picker-btn:hover{background:#f6ead7}
+
+.btn.success{background:#087b55;color:#fff}.muted{color:var(--muted)}.money-due{color:#b00020}.money-ok{color:#087b55}
+.money-summary,.checkout-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.checkout-summary{grid-template-columns:repeat(2,1fr)}
+.money-summary>div,.checkout-summary>div{border:1px solid #ead4ad;background:#fffaf2;border-radius:10px;padding:11px}.money-summary span,.checkout-summary span{display:block;color:var(--muted);font-size:12px}.money-summary b,.money-summary strong,.checkout-summary b,.checkout-summary strong{display:block;margin-top:4px;font-size:17px;color:var(--red)}
+.receipt-card{min-width:min(560px,92vw)}.receipt-head{text-align:center;border-bottom:2px solid #a9001d;padding-bottom:14px}.receipt-head h3{margin:0;color:#a9001d}.receipt-head b{display:block;margin-top:5px}.receipt-grid{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:16px 0}.receipt-grid span{color:#6f665b}.receipt-grid strong{font-size:22px;color:#a9001d}.receipt-sign{display:grid;grid-template-columns:1fr 1fr;text-align:center;gap:50px;margin-top:25px;padding-top:15px;border-top:1px solid #ddd}
+@media(max-width:720px){.money-summary,.checkout-summary{grid-template-columns:1fr}.receipt-grid{grid-template-columns:1fr}}
+@media print{body *{visibility:hidden!important}#receipt-dialog[open],#receipt-dialog[open] *{visibility:visible!important}#receipt-dialog[open]{position:absolute;left:0;top:0;width:100%;max-width:none;box-shadow:none}.no-print{display:none!important}}

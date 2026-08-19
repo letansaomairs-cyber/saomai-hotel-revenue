@@ -125,6 +125,31 @@ async function getStay(env, id) {
   return await env.DB.prepare('SELECT * FROM stays WHERE id=?').bind(id).first();
 }
 
+async function financialSummary(env, stay, throughDate=todayVN()){
+  await ensurePaymentSchema(env);
+  if(stay.status==='active') await ensureLedgerThrough(minDate(throughDate,todayVN()));
+  const room=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
+      COALESCE(SUM(breakfast_amount),0) breakfast,
+      COALESCE(SUM(net_room_amount),0) net_room
+      FROM daily_room_revenue WHERE stay_id=? AND revenue_date<=?`).bind(stay.id,throughDate).first())||{};
+  const svc=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total
+      FROM services WHERE stay_id=? AND service_date<=?`).bind(stay.id,throughDate).first())||{};
+  const pay=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total
+      FROM payments WHERE stay_id=? AND payment_date<=?`).bind(stay.id,throughDate).first())||{};
+  const roomTotal=num(room.total), serviceTotal=num(svc.total), paidTotal=num(pay.total);
+  return {room_total:roomTotal,room_net:num(room.net_room),breakfast_total:num(room.breakfast),
+    service_total:serviceTotal,charge_total:roomTotal+serviceTotal,paid_total:paidTotal,
+    balance:(roomTotal+serviceTotal)-paidTotal};
+}
+async function updatePaymentStatus(env, stayId){
+  const stay=await getStay(env,stayId); if(!stay) return;
+  const f=await financialSummary(env,stay,todayVN());
+  let status='Công nợ';
+  if(f.paid_total>0 && f.balance>0) status='Đã thu một phần';
+  if(f.paid_total>0 && f.balance<=0) status='Đã thanh toán';
+  await env.DB.prepare('UPDATE stays SET payment_method=?,updated_at=? WHERE id=?').bind(status,nowISO(),stayId).run();
+}
+
 async function ensureLedgerThrough(env, throughDate) {
   if (!isDate(throughDate)) return;
   await ensureSegmentSchema(env);
@@ -225,14 +250,21 @@ async function apiDashboard(request, env, url) {
 
 async function apiStays(request, env, url) {
   if (request.method === 'GET') {
+    await ensurePaymentSchema(env);
+    await ensureLedgerThrough(todayVN());
     const status = clean(url.searchParams.get('status'),20);
     const q = clean(url.searchParams.get('q'),80);
-    let sql='SELECT * FROM stays WHERE 1=1'; const binds=[];
-    if(status){ sql+=' AND status=?'; binds.push(status); }
-    if(q){ sql+=' AND (guest_name LIKE ? OR room_no LIKE ? OR company_name LIKE ? OR code LIKE ?)'; const x=`%${q}%`; binds.push(x,x,x,x); }
-    sql+=' ORDER BY CASE status WHEN \'active\' THEN 0 ELSE 1 END, check_in_date DESC, id DESC LIMIT 300';
+    let sql=`SELECT s.*,
+      COALESCE((SELECT SUM(r.amount) FROM daily_room_revenue r WHERE r.stay_id=s.id),0) room_total,
+      COALESCE((SELECT SUM(v.amount) FROM services v WHERE v.stay_id=s.id),0) service_total,
+      COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.stay_id=s.id),0) paid_total
+      FROM stays s WHERE 1=1`; const binds=[];
+    if(status){ sql+=' AND s.status=?'; binds.push(status); }
+    if(q){ sql+=' AND (s.guest_name LIKE ? OR s.room_no LIKE ? OR s.company_name LIKE ? OR s.code LIKE ?)'; const x=`%${q}%`; binds.push(x,x,x,x); }
+    sql+=' ORDER BY CASE s.status WHEN \'active\' THEN 0 ELSE 1 END, s.check_in_date DESC, s.id DESC LIMIT 300';
     const rs=await env.DB.prepare(sql).bind(...binds).all();
-    return json({ok:true, rows:rs.results||[]});
+    const rows=(rs.results||[]).map(r=>({...r,charge_total:num(r.room_total)+num(r.service_total),balance:num(r.room_total)+num(r.service_total)-num(r.paid_total)}));
+    return json({ok:true, rows});
   }
   if (request.method === 'POST') {
     const b=await request.json();
@@ -252,11 +284,12 @@ async function apiStays(request, env, url) {
     await ensurePaymentSchema(env);
     const initialAmount=num(b.initial_payment_amount);
     if(initialAmount>0){
-      const kind=['deposit','payment','debt_payment'].includes(b.initial_payment_kind)?b.initial_payment_kind:'deposit';
+      const kind=['deposit','payment'].includes(b.initial_payment_kind)?b.initial_payment_kind:'deposit';
       const method=['cash','transfer','card'].includes(b.initial_payment_method)?b.initial_payment_method:'cash';
       const pdate=isDate(b.initial_payment_date)?b.initial_payment_date:ci;
       await env.DB.prepare('INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at) VALUES(?,?,?,?,?,?,?)')
         .bind(id,pdate,kind,initialAmount,method,clean(b.initial_payment_note,300),nowISO()).run();
+      await updatePaymentStatus(env,id);
     }
     await log(env,'create','stay',id,code);
     return json({ok:true,id,code});
@@ -273,7 +306,8 @@ async function apiStayDetail(request, env, id) {
     const segments=(await env.DB.prepare('SELECT * FROM stay_segments WHERE stay_id=? ORDER BY start_date,id').bind(id).all()).results||[];
     await ensurePaymentSchema(env);
     const payments=(await env.DB.prepare('SELECT * FROM payments WHERE stay_id=? ORDER BY payment_date,id').bind(id).all()).results||[];
-    return json({ok:true,stay,ledger,services,payments,segments});
+    const financial=await financialSummary(env,stay,stay.actual_check_out_date||todayVN());
+    return json({ok:true,stay,ledger,services,payments,segments,financial});
   }
   if(request.method==='PATCH') {
     const b=await request.json(); const ts=nowISO();
@@ -363,6 +397,56 @@ async function apiTransferRoom(request, env, id) {
   return json({ok:true,segment_id:rs.meta?.last_row_id,transfer_date:transferDate,new_room_no:newRoom,new_room_type:newType,new_contract_rate:newRate});
 }
 
+
+async function apiStayPayments(request, env, id) {
+  const stay=await getStay(env,id);
+  if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
+  await ensurePaymentSchema(env);
+  if(request.method==='GET'){
+    const payments=(await env.DB.prepare('SELECT * FROM payments WHERE stay_id=? ORDER BY payment_date,id').bind(id).all()).results||[];
+    const financial=await financialSummary(env,stay,stay.actual_check_out_date||todayVN());
+    return json({ok:true,stay,payments,financial});
+  }
+  if(request.method==='POST'){
+    if(stay.status!=='active') return json({error:'Khách đã checkout. Lễ tân không ghi nhận thêm khoản thu sau checkout.'},409);
+    const b=await request.json();
+    const date=clean(b.payment_date,10), amount=num(b.amount);
+    const kind=['deposit','payment'].includes(b.payment_kind)?b.payment_kind:'payment';
+    const method=['cash','transfer','card'].includes(b.payment_method)?b.payment_method:'cash';
+    if(!isDate(date)||date<stay.check_in_date||date>todayVN()) return json({error:'Ngày thu tiền không hợp lệ.'},400);
+    if(amount<=0) return json({error:'Số tiền thu phải lớn hơn 0.'},400);
+    const rs=await env.DB.prepare(`INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at)
+      VALUES(?,?,?,?,?,?,?)`).bind(id,date,kind,amount,method,clean(b.note,300),nowISO()).run();
+    await updatePaymentStatus(env,id);
+    await log(env,'payment','stay',id,JSON.stringify({payment_id:rs.meta?.last_row_id,date,kind,amount,method}));
+    const fresh=await getStay(env,id);
+    const financial=await financialSummary(env,fresh,todayVN());
+    return json({ok:true,payment:{id:rs.meta?.last_row_id,payment_date:date,payment_kind:kind,amount,payment_method:method,note:clean(b.note,300)},financial});
+  }
+  return json({error:'Method not allowed'},405);
+}
+async function apiCheckoutPreview(request, env, id, url) {
+  const stay=await getStay(env,id);
+  if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
+  if(stay.status!=='active') return json({error:'Khách đã checkout.'},409);
+  const checkout=clean(url.searchParams.get('date'),10);
+  const mode=clean(url.searchParams.get('mode'),30)||'contract';
+  const fallback=num(url.searchParams.get('fallback_daily_rate'),stay.fallback_daily_rate);
+  const custom=num(url.searchParams.get('custom_total'));
+  if(!isDate(checkout)||checkout<stay.check_in_date||checkout>todayVN()) return json({error:'Ngày checkout không hợp lệ.'},400);
+  await ensureLedgerThrough(addDays(checkout,-1));
+  const recognizedRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM daily_room_revenue
+      WHERE stay_id=? AND revenue_date<? AND source_kind='accrual'`).bind(id,checkout).first();
+  const recognized=num(recognizedRow?.total), nights=Math.max(0,diffDays(stay.check_in_date,checkout));
+  let roomTarget=recognized;
+  if(mode==='fallback_daily') roomTarget=nights*fallback;
+  if(mode==='custom_total') roomTarget=custom;
+  const adjustment=roomTarget-recognized;
+  const svc=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM services WHERE stay_id=? AND service_date<=?`).bind(id,checkout).first();
+  const pay=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE stay_id=? AND payment_date<=?`).bind(id,checkout).first();
+  const serviceTotal=num(svc?.total), paidTotal=num(pay?.total), grandTotal=roomTarget+serviceTotal;
+  return json({ok:true,nights,recognized_room:recognized,room_target:roomTarget,adjustment,service_total:serviceTotal,grand_total:grandTotal,paid_total:paidTotal,remaining:grandTotal-paidTotal});
+}
 async function apiCheckout(request, env, id) {
   if(request.method!=='POST') return json({error:'Method not allowed'},405);
   const stay=await getStay(env,id); if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
@@ -390,15 +474,21 @@ async function apiCheckout(request, env, id) {
       .bind(id,checkout,'adjustment',adjustment,adjustment,0,stay.pricing_plan,stay.allocation_method,`Điều chỉnh checkout: ${mode}; ${nights} đêm; tổng quyết toán ${target.toFixed(0)}`,nowISO()).run();
   }
   await ensurePaymentSchema(env);
-  const dpAmount=num(b.dailypayment_amount);
+  const serviceRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM services WHERE stay_id=? AND service_date<=?`).bind(id,checkout).first();
+  const paidBeforeRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE stay_id=? AND payment_date<=?`).bind(id,checkout).first();
+  const serviceTotal=num(serviceRow?.total), paidBefore=num(paidBeforeRow?.total);
+  const grandTotal=target+serviceTotal, remainingBefore=grandTotal-paidBefore;
+  const dpAmount=num(b.dailypayment_amount); let paymentId=null, dpMethod=null;
   if(dpAmount>0){
-    const method=['cash','transfer','card'].includes(b.dailypayment_method)?b.dailypayment_method:'cash';
-    await env.DB.prepare('INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at) VALUES(?,?,?,?,?,?,?)')
-      .bind(id,checkout,'dailypayment',dpAmount,method,clean(b.dailypayment_note,300),nowISO()).run();
+    dpMethod=['cash','transfer','card'].includes(b.dailypayment_method)?b.dailypayment_method:'cash';
+    const prs=await env.DB.prepare('INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at) VALUES(?,?,?,?,?,?,?)')
+      .bind(id,checkout,'dailypayment',dpAmount,dpMethod,clean(b.dailypayment_note,300),nowISO()).run();
+    paymentId=prs.meta?.last_row_id;
   }
-  await env.DB.prepare(`UPDATE stays SET actual_check_out_date=?,status='checked_out',updated_at=? WHERE id=?`).bind(checkout,nowISO(),id).run();
-  await log(env,'checkout','stay',id,JSON.stringify({checkout,mode,nights,recognized,target,adjustment}));
-  return json({ok:true,nights,recognized,target,adjustment});
+  await env.DB.prepare(`UPDATE stays SET actual_check_out_date=?,status='checked_out',payment_method=?,updated_at=? WHERE id=?`)
+    .bind(checkout,(remainingBefore-dpAmount)<=0?'Đã thanh toán':'Còn công nợ khi checkout',nowISO(),id).run();
+  await log(env,'checkout','stay',id,JSON.stringify({checkout,mode,nights,recognized,target,adjustment,serviceTotal,paidBefore,dpAmount}));
+  return json({ok:true,nights,recognized,target,adjustment,service_total:serviceTotal,grand_total:grandTotal,paid_before:paidBefore,dailypayment:dpAmount,balance:grandTotal-paidBefore-dpAmount,payment_id:paymentId,payment_method:dpMethod});
 }
 
 async function apiServices(request, env, url) {
@@ -510,7 +600,9 @@ async function route(request, env) {
   const url=new URL(request.url); const p=url.pathname;
   if(p==='/api/dashboard') return apiDashboard(request,env,url);
   if(p==='/api/stays') return apiStays(request,env,url);
-  let m=p.match(/^\/api\/stays\/(\d+)\/transfer-room$/); if(m) return apiTransferRoom(request,env,int(m[1]));
+  let m=p.match(/^\/api\/stays\/(\d+)\/payments$/); if(m) return apiStayPayments(request,env,int(m[1]));
+  m=p.match(/^\/api\/stays\/(\d+)\/checkout-preview$/); if(m) return apiCheckoutPreview(request,env,int(m[1]),url);
+  m=p.match(/^\/api\/stays\/(\d+)\/transfer-room$/); if(m) return apiTransferRoom(request,env,int(m[1]));
   m=p.match(/^\/api\/stays\/(\d+)\/checkout$/); if(m) return apiCheckout(request,env,int(m[1]));
   m=p.match(/^\/api\/stays\/(\d+)$/); if(m) return apiStayDetail(request,env,int(m[1]));
   if(p==='/api/services') return apiServices(request,env,url);

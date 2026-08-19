@@ -59,12 +59,12 @@
             <label>Giá ngày fallback (đ)<input name="fallback_daily_rate" type="number" min="0" placeholder="Dùng khi checkout sớm" /></label>
             <label>Số khách ăn sáng<input name="breakfast_guests" type="number" min="0" value="0" /></label>
             <label>Giá điểm tâm/người<input name="breakfast_rate" type="number" min="0" value="100000" /></label>
-            <label>Trạng thái thanh toán<select name="payment_method"><option value="Công nợ">Công nợ / Chưa thanh toán</option><option value="Đã thanh toán">Đã thanh toán</option></select></label>
+            <label>Trạng thái thanh toán<select name="payment_method"><option value="Công nợ">Công nợ / Chưa thanh toán</option><option value="Đã cọc">Đã cọc</option><option value="Đã thanh toán">Đã thanh toán</option></select></label>
             <label>Thu tiền / Cọc ban đầu (đ)<input name="initial_payment_amount" type="number" min="0" value="0" /></label>
-            <label>Ngày thu/cọc<input name="initial_payment_date" type="date" /></label>
-            <label>Loại thu<select name="initial_payment_kind"><option value="deposit">Cọc</option><option value="payment">Thanh toán trong thời gian ở</option><option value="debt_payment">Thanh toán công nợ</option></select></label>
-            <label>Phương thức<select name="initial_payment_method"><option value="cash">Tiền mặt</option><option value="transfer">Chuyển khoản</option><option value="card">Thẻ</option></select></label>
-            <label class="span2">Ghi chú thu/cọc<input name="initial_payment_note" placeholder="Mã giao dịch / người nhận / ghi chú..." /></label>
+            <label class="initial-payment-extra hidden">Ngày thu/cọc<input name="initial_payment_date" type="date" /></label>
+            <label class="initial-payment-extra hidden">Loại thu<select name="initial_payment_kind"><option value="deposit">Cọc ban đầu</option><option value="payment">Thanh toán ban đầu</option></select></label>
+            <label class="initial-payment-extra hidden">Phương thức<select name="initial_payment_method"><option value="cash">Tiền mặt</option><option value="transfer">Chuyển khoản</option><option value="card">Thẻ</option></select></label>
+            <label class="span2 initial-payment-extra hidden">Ghi chú thu/cọc<input name="initial_payment_note" placeholder="Mã giao dịch / người nhận / ghi chú..." /></label>
             <label class="span2">Ghi chú<textarea name="note" rows="3"></textarea></label>
             <div class="span2 form-actions"><button class="btn primary" type="submit">Lưu lưu trú</button><button class="btn ghost" type="reset">Nhập lại</button></div>
           </form>
@@ -73,7 +73,7 @@
 
       <section class="view" id="view-stays">
         <article class="card"><div class="card-head"><div><h3>Danh sách lưu trú</h3><p>Khách ngày, tháng, năm và lịch sử checkout.</p></div><div class="filters"><input id="stay-search" placeholder="Tìm phòng / khách / công ty..."/><select id="stay-status"><option value="active">Đang ở</option><option value="checked_out">Đã checkout</option><option value="">Tất cả</option></select><button class="btn ghost" id="stay-refresh">Làm mới</button></div></div>
-          <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Phòng</th><th>Khách/Công ty</th><th>Giá</th><th>Check-in</th><th>Dự kiến</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="stays-body"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Phòng</th><th>Khách/Công ty</th><th>Giá</th><th>Check-in</th><th>Dự kiến</th><th>Phát sinh</th><th>Đã thu</th><th>Còn phải thu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="stays-body"></tbody></table></div>
         </article>
       </section>
 
@@ -133,6 +133,32 @@
     </main>
   </div>
 
+  <dialog id="payment-dialog">
+    <form method="dialog" id="payment-form" class="dialog-card">
+      <div class="card-head"><div><h3>Thu tiền</h3><p id="payment-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>
+      <input type="hidden" name="stay_id" />
+      <div class="money-summary"><div><span>Tổng phát sinh</span><b id="payment-charge">0 đ</b></div><div><span>Đã thu</span><b id="payment-paid">0 đ</b></div><div><span>Còn phải thu</span><strong id="payment-balance">0 đ</strong></div></div>
+      <label>Ngày thu<input name="payment_date" type="date" required /></label>
+      <label>Số tiền thu (đ)<input name="amount" type="number" min="1" required /></label>
+      <label>Loại thu<select name="payment_kind"><option value="payment">Thanh toán trong thời gian ở</option><option value="deposit">Cọc thêm</option></select></label>
+      <label>Phương thức<select name="payment_method"><option value="cash">Tiền mặt</option><option value="transfer">Chuyển khoản</option><option value="card">Thẻ</option></select></label>
+      <label>Ghi chú<input name="note" placeholder="Mã giao dịch / người nhận..." /></label>
+      <div class="notice">Khoản thu chỉ giảm số tiền còn phải thu, <b>không cộng thêm vào doanh thu phòng</b>.</div>
+      <div class="form-actions"><button class="btn primary" value="default" id="payment-submit">Lưu & tạo bill</button><button class="btn ghost" value="cancel">Hủy</button></div>
+    </form>
+  </dialog>
+  <dialog id="payment-history-dialog">
+    <div class="dialog-card"><div class="card-head"><div><h3>Lịch sử thanh toán</h3><p id="history-guest"></p></div><button class="icon-btn" id="history-close">×</button></div>
+      <div class="money-summary"><div><span>Tổng phát sinh</span><b id="history-charge">0 đ</b></div><div><span>Đã thu</span><b id="history-paid">0 đ</b></div><div><span>Còn phải thu</span><strong id="history-balance">0 đ</strong></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Loại thu</th><th>Số tiền</th><th>Phương thức</th><th>Ghi chú</th></tr></thead><tbody id="payment-history-body"></tbody></table></div>
+    </div>
+  </dialog>
+  <dialog id="receipt-dialog">
+    <div class="dialog-card receipt-card" id="receipt-content"><div class="receipt-head"><h3>SAO MAI PHU MY RESORT</h3><b>PHIẾU THU / PAYMENT RECEIPT</b></div><div id="receipt-body"></div>
+      <div class="form-actions no-print"><button class="btn primary" id="print-receipt">In bill</button><button class="btn ghost" id="close-receipt">Đóng</button></div>
+    </div>
+  </dialog>
+
   <dialog id="transfer-dialog">
     <form method="dialog" id="transfer-form" class="dialog-card">
       <div class="card-head"><div><h3>Chuyển phòng</h3><p id="transfer-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>
@@ -159,6 +185,7 @@
       <label>Cách quyết toán<select name="settlement_mode" id="settlement-mode"><option value="contract">Giữ doanh thu đã kéo theo hợp đồng</option><option value="fallback_daily">Chuyển sang giá ngày fallback</option><option value="custom_total">Nhập tổng quyết toán thực tế</option></select></label>
       <label id="fallback-wrap">Giá ngày fallback<input name="fallback_daily_rate" type="number" min="0" /></label>
       <label id="custom-wrap" class="hidden">Tổng quyết toán thực tế<input name="custom_total" type="number" min="0" /></label>
+      <div class="checkout-summary"><div><span>Tiền phòng quyết toán</span><b id="co-room">0 đ</b></div><div><span>Dịch vụ</span><b id="co-service">0 đ</b></div><div><span>Đã thu trước checkout</span><b id="co-paid">0 đ</b></div><div><span>Còn phải thu</span><strong id="co-remaining">0 đ</strong></div></div>
       <label>DailyPayment ngày checkout (đ)<input name="dailypayment_amount" type="number" min="0" value="0" /></label>
       <label>Phương thức DailyPayment<select name="dailypayment_method"><option value="cash">Tiền mặt</option><option value="transfer">Chuyển khoản</option><option value="card">Thẻ</option></select></label>
       <label>Ghi chú DailyPayment<input name="dailypayment_note" placeholder="Mã giao dịch / ghi chú..." /></label>
