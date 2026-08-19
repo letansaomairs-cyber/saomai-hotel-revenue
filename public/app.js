@@ -20,7 +20,31 @@ function renderBars(points){const max=Math.max(1,...points.map(p=>p.total));$('#
 
 $('#stay-form').onsubmit=async e=>{e.preventDefault();const b=Object.fromEntries(new FormData(e.currentTarget));try{const d=await api('/api/stays',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});toast('Đã tạo lưu trú '+d.code);const form=e.currentTarget;form.reset();form.querySelector('[name=check_in_date]').value=today();form.querySelector('[name=initial_payment_date]').value=today();e.currentTarget.querySelector('[name=breakfast_guests]').value=0;e.currentTarget.querySelector('[name=breakfast_rate]').value=100000;go('stays')}catch(err){toast(err.message,true)}};
 $('#stay-refresh').onclick=loadStays;$('#stay-status').onchange=loadStays;let searchTimer;$('#stay-search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(loadStays,300)};
-async function loadStays(){try{const q=encodeURIComponent($('#stay-search').value||''),st=encodeURIComponent($('#stay-status').value||'');const d=await api(`/api/stays?status=${st}&q=${q}`);$('#stays-body').innerHTML=(d.rows||[]).map(r=>`<tr><td><b>${esc(r.code)}</b><br><small>ID ${r.id}</small></td><td><b>${esc(r.room_no)}</b><br><small>${esc(r.room_type)}</small></td><td>${esc(r.guest_name)}<br><small>${esc(r.company_name)}</small></td><td>${planName(r.pricing_plan)}<br><b>${fmt(r.contract_rate)}</b></td><td>${r.check_in_date}</td><td>${r.expected_check_out_date||'-'}</td><td><span class="badge ${r.status}">${r.status==='active'?'Đang ở':'Đã checkout'}</span></td><td><div class="action-stack">${r.status==='active'?`<button class="btn primary checkout-btn" data-id="${r.id}" data-room="${esc(r.room_no)}" data-guest="${esc(r.guest_name)}" data-fallback="${r.fallback_daily_rate}">Checkout</button>`:''}<button class="btn danger delete-stay-btn" data-id="${r.id}" data-code="${esc(r.code)}" data-room="${esc(r.room_no)}" data-guest="${esc(r.guest_name)}">Xóa</button></div></td></tr>`).join('')||'<tr><td colspan=8>Không có dữ liệu.</td></tr>';$$('.checkout-btn').forEach(b=>b.onclick=()=>openCheckout(b));$$('.delete-stay-btn').forEach(b=>b.onclick=()=>deleteStay(b))}catch(e){toast(e.message,true)}}
+async function loadStays(){try{const q=encodeURIComponent($('#stay-search').value||''),st=encodeURIComponent($('#stay-status').value||'');const d=await api(`/api/stays?status=${st}&q=${q}`);$('#stays-body').innerHTML=(d.rows||[]).map(r=>`<tr><td><b>${esc(r.code)}</b><br><small>ID ${r.id}</small></td><td><b>${esc(r.room_no)}</b><br><small>${esc(r.room_type)}</small></td><td>${esc(r.guest_name)}<br><small>${esc(r.company_name)}</small></td><td>${planName(r.pricing_plan)}<br><b>${fmt(r.contract_rate)}</b></td><td>${r.check_in_date}</td><td>${r.expected_check_out_date||'-'}</td><td><span class="badge ${r.status}">${r.status==='active'?'Đang ở':'Đã checkout'}</span></td><td><div class="action-stack">${r.status==='active'?`<button class="btn gold transfer-btn" data-id="${r.id}" data-room="${esc(r.room_no)}" data-room-type="${esc(r.room_type)}" data-rate="${r.contract_rate}" data-guest="${esc(r.guest_name)}" data-plan="${r.pricing_plan}">Chuyển phòng</button><button class="btn primary checkout-btn" data-id="${r.id}" data-room="${esc(r.room_no)}" data-guest="${esc(r.guest_name)}" data-fallback="${r.fallback_daily_rate}">Checkout</button>`:''}<button class="btn danger delete-stay-btn" data-id="${r.id}" data-code="${esc(r.code)}" data-room="${esc(r.room_no)}" data-guest="${esc(r.guest_name)}">Xóa</button></div></td></tr>`).join('')||'<tr><td colspan=8>Không có dữ liệu.</td></tr>';$$('.transfer-btn').forEach(b=>b.onclick=()=>openTransfer(b));$$('.checkout-btn').forEach(b=>b.onclick=()=>openCheckout(b));$$('.delete-stay-btn').forEach(b=>b.onclick=()=>deleteStay(b))}catch(e){toast(e.message,true)}}
+function openTransfer(b){
+  const f=$('#transfer-form');
+  f.stay_id.value=b.dataset.id;
+  f.transfer_date.value=today();
+  f.new_room_no.value='';
+  f.new_room_type.value='';
+  f.new_contract_rate.value=b.dataset.rate||0;
+  $('#transfer-guest').textContent=`${b.dataset.guest} · hiện tại ${b.dataset.room} · ${b.dataset.roomType||'-'}`;
+  $('#transfer-plan-note').textContent=b.dataset.plan==='monthly'
+    ? 'Khách tháng: số ngày ở được nối liên tục. Chặng phòng mới tính theo giá tháng của hạng phòng mới; không đổi sang giá ngày chỉ vì chuyển phòng.'
+    : 'Chuyển phòng không tạo booking mới và không reset số ngày lưu trú.';
+  $('#transfer-dialog').showModal();
+}
+$('#transfer-submit').onclick=async e=>{
+  e.preventDefault();
+  const f=$('#transfer-form'),b=Object.fromEntries(new FormData(f));
+  try{
+    await api(`/api/stays/${b.stay_id}/transfer-room`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});
+    $('#transfer-dialog').close();
+    toast('Đã chuyển phòng và giữ liên tục kỳ lưu trú.');
+    loadStays(); loadDaily(); loadDashboard();
+  }catch(err){toast(err.message,true)}
+};
+
 async function deleteStay(b){if(!confirm(`Xóa lưu trú ${b.dataset.code} - ${b.dataset.guest} - phòng ${b.dataset.room}?\n\nChỉ dùng cho dữ liệu nhập nháp/sai. Dữ liệu ngày đã chốt sẽ không cho xóa.`))return;const pin=prompt('Nhập PIN quản lý để xóa:');if(pin===null)return;try{await api(`/api/stays/${b.dataset.id}`,{method:'DELETE',headers:{'x-admin-pin':pin}});toast('Đã xóa lưu trú nhập nháp.');loadStays();loadDashboard()}catch(e){toast(e.message,true)}}
 function openCheckout(b){const f=$('#checkout-form');f.stay_id.value=b.dataset.id;f.actual_check_out_date.value=today();f.fallback_daily_rate.value=b.dataset.fallback||0;$('#checkout-guest').textContent=`${b.dataset.guest} · Phòng ${b.dataset.room}`;$('#checkout-dialog').showModal();toggleSettlement()}
 function toggleSettlement(){const m=$('#settlement-mode').value;$('#fallback-wrap').classList.toggle('hidden',m!=='fallback_daily');$('#custom-wrap').classList.toggle('hidden',m!=='custom_total')}

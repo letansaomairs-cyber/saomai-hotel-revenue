@@ -67,3 +67,12 @@ Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số â
 ## V1.5.1
 - Fix hiển thị dấu tiếng Việt ở tiêu đề bằng font hệ thống hỗ trợ tiếng Việt tốt hơn.
 - Chuẩn hóa toàn bộ source text sang UTF-8 NFC.
+
+
+## V1.6 – Chuyển phòng liên tục
+- Thêm nút **Chuyển phòng** cho khách đang ở.
+- Một booking có thể có nhiều chặng phòng/hạng phòng.
+- Chuyển phòng không reset số ngày lưu trú và không tự chuyển khách tháng sang giá ngày.
+- Mỗi chặng dùng giá hợp đồng của hạng phòng tương ứng.
+- Báo cáo ngày lưu snapshot phòng/hạng phòng nên ngày cũ vẫn nằm đúng hạng phòng cũ sau khi khách chuyển phòng.
+- Worker tự tạo bảng `stay_segments` và bổ sung các cột snapshot cần thiết; không cần chạy SQL thủ công.

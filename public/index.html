@@ -133,6 +133,24 @@
     </main>
   </div>
 
+  <dialog id="transfer-dialog">
+    <form method="dialog" id="transfer-form" class="dialog-card">
+      <div class="card-head"><div><h3>Chuyển phòng</h3><p id="transfer-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>
+      <input type="hidden" name="stay_id" />
+      <label>Ngày chuyển phòng<input name="transfer_date" type="date" required /></label>
+      <label>Phòng mới<input name="new_room_no" placeholder="Ví dụ: 705" required /></label>
+      <label>Hạng phòng mới<select name="new_room_type" required>
+        <option value="">-- Chọn hạng phòng --</option>
+        <option>Family Villa</option><option>Suite Villa</option><option>Deluxe</option><option>Superior</option>
+        <option>Standard B</option><option>Standard A</option><option>Sweety room</option>
+      </select></label>
+      <label>Giá hợp đồng của hạng phòng mới (đ)<input name="new_contract_rate" type="number" min="1" required /></label>
+      <div class="notice" id="transfer-plan-note"></div>
+      <div class="notice"><b>Ví dụ:</b> khách ở 30 ngày, 15 ngày Standard A + 15 ngày Standard B thì hệ thống tính 15 ngày theo giá tháng Standard A và 15 ngày theo giá tháng Standard B. Đây vẫn là một kỳ lưu trú liên tục.</div>
+      <div class="form-actions"><button class="btn primary" value="default" id="transfer-submit">Xác nhận chuyển phòng</button><button class="btn ghost" value="cancel">Hủy</button></div>
+    </form>
+  </dialog>
+
   <dialog id="checkout-dialog">
     <form method="dialog" id="checkout-form" class="dialog-card">
       <div class="card-head"><div><h3>Checkout & quyết toán</h3><p id="checkout-guest"></p></div><button class="icon-btn" value="cancel">×</button></div>

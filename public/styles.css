@@ -9,3 +9,5 @@
 
 html,body,input,button,select,textarea{font-synthesis:none;text-rendering:optimizeLegibility}
 .card-head h3,.service-report-block h4,.topbar h1{font-kerning:normal;letter-spacing:0;word-spacing:0}
+
+.transfer-btn{white-space:nowrap}
