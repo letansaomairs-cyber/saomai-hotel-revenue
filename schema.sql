@@ -85,3 +85,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
   detail TEXT,
   created_at TEXT NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  stay_id INTEGER NOT NULL,
+  payment_date TEXT NOT NULL,
+  payment_kind TEXT NOT NULL,
+  amount REAL NOT NULL DEFAULT 0,
+  payment_method TEXT NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY(stay_id) REFERENCES stays(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_payments_stay ON payments(stay_id);
+CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
