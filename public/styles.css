@@ -11,3 +11,11 @@ html,body,input,button,select,textarea{font-synthesis:none;text-rendering:optimi
 .card-head h3,.service-report-block h4,.topbar h1{font-kerning:normal;letter-spacing:0;word-spacing:0}
 
 .transfer-btn{white-space:nowrap}
+
+/* DD/MM/YYYY + lịch native */
+.date-field{position:relative;display:flex;align-items:center;width:100%}
+.date-display{width:100%;padding-right:46px!important}
+.date-display.date-invalid{outline:2px solid #b90020;border-color:#b90020}
+.native-date-source{position:absolute!important;right:42px;top:50%;width:2px!important;height:2px!important;opacity:.01!important;padding:0!important;border:0!important;pointer-events:none!important}
+.date-picker-btn{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;cursor:pointer;font-size:18px;color:#111;display:grid;place-items:center;border-radius:8px}
+.date-picker-btn:hover{background:#f6ead7}
