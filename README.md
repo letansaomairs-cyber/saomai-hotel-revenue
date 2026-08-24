@@ -85,3 +85,9 @@ Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số â
 - In bill sau mỗi lần thu.
 - Checkout có quyết toán và DailyPayment.
 - Sau checkout, lễ tân không ghi nhận thêm khoản thu.
+
+## V1.7.1 – Live Daily Revenue Fix
+- Mở **Doanh thu theo ngày** hoặc bấm **Xem** sẽ tự sinh và hiển thị doanh thu của khách đang ở đến ngày được chọn.
+- **Không cần Chốt ngày để thấy doanh thu**.
+- Nút **Chốt ngày** chỉ khóa số liệu ngày đó.
+- Sửa lỗi gọi `ensureLedgerThrough` thiếu biến `env` trong phần tính tình trạng thanh toán.

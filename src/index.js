@@ -127,7 +127,7 @@ async function getStay(env, id) {
 
 async function financialSummary(env, stay, throughDate=todayVN()){
   await ensurePaymentSchema(env);
-  if(stay.status==='active') await ensureLedgerThrough(minDate(throughDate,todayVN()));
+  if(stay.status==='active') await ensureLedgerThrough(env,minDate(throughDate,todayVN()));
   const room=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
       COALESCE(SUM(breakfast_amount),0) breakfast,
       COALESCE(SUM(net_room_amount),0) net_room
@@ -521,8 +521,14 @@ async function apiServices(request, env, url) {
 async function apiDailyReport(request, env, url) {
   const date=isDate(url.searchParams.get('date'))?url.searchParams.get('date'):todayVN();
   const roomType=clean(url.searchParams.get('room_type'),80);
-  let rows;
+
+  // Báo cáo là báo cáo "live": mở/Xem ngày nào thì tự sinh doanh thu
+  // của khách đang ở đến ngày đó (không cần Chốt ngày).
+  // Không sinh trước ngày tương lai.
+  await ensureLedgerThrough(env,minDate(date,todayVN()));
   await ensureSegmentSchema(env);
+
+  let rows;
   if(roomType){
     rows=(await env.DB.prepare(`SELECT r.*,s.code,s.guest_name,s.company_name,
       COALESCE(r.room_no_snapshot,s.room_no) room_no,
@@ -543,7 +549,7 @@ async function apiDailyReport(request, env, url) {
   const roomGross=rows.reduce((a,r)=>a+num(r.amount),0), breakfast=rows.reduce((a,r)=>a+num(r.breakfast_amount),0), roomNet=rows.reduce((a,r)=>a+num(r.net_room_amount),0), adjustment=rows.filter(r=>r.source_kind==='adjustment').reduce((a,r)=>a+num(r.net_room_amount),0);
   const summary=roomType?{...baseSummary,room:{...baseSummary.room,room_gross:roomGross,breakfast,room_net:roomNet,adjustment},total:roomGross+num(baseSummary.services.total)}:baseSummary;
   const services=(await env.DB.prepare(`SELECT sv.*,st.guest_name,st.company_name FROM services sv LEFT JOIN stays st ON st.id=sv.stay_id WHERE sv.service_date=? ORDER BY sv.room_no,sv.id`).bind(date).all()).results||[];
-  return json({ok:true,summary,rows,services});
+  return json({ok:true,live:!summary.closing,summary,rows,services});
 }
 
 async function apiCloseDay(request, env) {
