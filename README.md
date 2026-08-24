@@ -91,3 +91,9 @@ Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số â
 - **Không cần Chốt ngày để thấy doanh thu**.
 - Nút **Chốt ngày** chỉ khóa số liệu ngày đó.
 - Sửa lỗi gọi `ensureLedgerThrough` thiếu biến `env` trong phần tính tình trạng thanh toán.
+
+## V1.7.2 – Daily Report Fix
+- Báo cáo ngày chỉ sinh dữ liệu đúng ngày đang xem, không quét toàn bộ lịch sử.
+- API nhận được cả DD/MM/YYYY và YYYY-MM-DD.
+- Giao diện luôn đổi ngày DD/MM/YYYY sang ISO trước khi gọi API.
+- Không cần chốt ngày để thấy doanh thu.

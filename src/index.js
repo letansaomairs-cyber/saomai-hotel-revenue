@@ -12,6 +12,16 @@ function todayVN() {
   return f.format(new Date());
 }
 function isDate(s) { return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')); }
+function normalizeDateParam(v){
+  const s=String(v||'').trim();
+  if(isDate(s)) return s;
+  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m){
+    const iso=`${m[3]}-${m[2]}-${m[1]}`;
+    if(isDate(iso)) return iso;
+  }
+  return '';
+}
 function parseDate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
 function fmtDate(d) { return d.toISOString().slice(0,10); }
 function addDays(s, n) { const d = parseDate(s); d.setUTCDate(d.getUTCDate() + n); return fmtDate(d); }
@@ -150,6 +160,36 @@ async function updatePaymentStatus(env, stayId){
   await env.DB.prepare('UPDATE stays SET payment_method=?,updated_at=? WHERE id=?').bind(status,nowISO(),stayId).run();
 }
 
+
+async function ensureLedgerForDate(env, date) {
+  date=normalizeDateParam(date);
+  if(!date || date>todayVN()) return;
+  await ensureSegmentSchema(env);
+
+  const closed=await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(date).first();
+  if(closed) return;
+
+  const stays=(await env.DB.prepare(`SELECT * FROM stays
+    WHERE check_in_date<=?
+      AND status IN ('active','checked_out')
+      AND (actual_check_out_date IS NULL OR actual_check_out_date>?)`)
+    .bind(date,date).all()).results||[];
+
+  const ts=nowISO();
+  for(const stay of stays){
+    const seg=await segmentForDate(env,stay,date);
+    const gross=dailyGross(seg,date);
+    const sp=splitGross(stay,gross);
+    await env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
+      (stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at,
+       segment_id,room_no_snapshot,room_type_snapshot,contract_rate_snapshot)
+      VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
+      .bind(stay.id,date,'accrual',gross,sp.breakfast,sp.netRoom,gross,seg.pricing_plan,seg.allocation_method,
+        `Phân bổ ${seg.room_type||'hạng phòng'} · phòng ${seg.room_no}`,ts,
+        seg.id,seg.room_no,seg.room_type,seg.contract_rate).run();
+  }
+}
+
 async function ensureLedgerThrough(env, throughDate) {
   if (!isDate(throughDate)) return;
   await ensureSegmentSchema(env);
@@ -195,7 +235,7 @@ async function ensureLedgerThrough(env, throughDate) {
 }
 
 async function dailySummary(env, date) {
-  await ensureLedgerThrough(env, date);
+  await ensureLedgerForDate(env, date);
   const room = await env.DB.prepare(`SELECT
       COALESCE(SUM(CASE WHEN source_kind='accrual' THEN net_room_amount ELSE 0 END),0) room_base,
       COALESCE(SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END),0) adjustment,
@@ -519,13 +559,10 @@ async function apiServices(request, env, url) {
 }
 
 async function apiDailyReport(request, env, url) {
-  const date=isDate(url.searchParams.get('date'))?url.searchParams.get('date'):todayVN();
+  const date=normalizeDateParam(url.searchParams.get('date'))||todayVN();
   const roomType=clean(url.searchParams.get('room_type'),80);
 
-  // Báo cáo là báo cáo "live": mở/Xem ngày nào thì tự sinh doanh thu
-  // của khách đang ở đến ngày đó (không cần Chốt ngày).
-  // Không sinh trước ngày tương lai.
-  await ensureLedgerThrough(env,minDate(date,todayVN()));
+  await ensureLedgerForDate(env,date);
   await ensureSegmentSchema(env);
 
   let rows;
@@ -584,7 +621,7 @@ async function apiMonthReport(request, env, url) {
 }
 
 async function apiExportDaily(env, url) {
-  const date=isDate(url.searchParams.get('date'))?url.searchParams.get('date'):todayVN();
+  const date=normalizeDateParam(url.searchParams.get('date'))||todayVN();
   const roomType=clean(url.searchParams.get('room_type'),80);
   await ensureSegmentSchema(env);
   let sql=`SELECT COALESCE(r.room_no_snapshot,s.room_no) room_no,
