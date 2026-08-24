@@ -33,7 +33,7 @@
           <article class="kpi"><span>DTKS thuần</span><strong id="kpi-net-room">0 đ</strong><small>Sau khi tách điểm tâm</small></article>
           <article class="kpi"><span>Điểm tâm</span><strong id="kpi-breakfast">0 đ</strong><small>Chuyển doanh thu nhà hàng</small></article>
           <article class="kpi"><span>Vé & dịch vụ</span><strong id="kpi-service">0 đ</strong><small>Vé bơi, golf, tennis, minibar...</small></article>
-          <article class="kpi"><span>Tổng doanh thu hôm nay</span><strong id="kpi-total">0 đ</strong><small id="kpi-adjustment">Điều chỉnh: 0 đ</small></article>
+          <article class="kpi"><span>Tổng doanh thu hôm nay</span><strong id="kpi-total">0 đ</strong><small id="kpi-adjustment">Điều chỉnh: 0 đ</small></article><article class="kpi"><span>Phòng đang sử dụng</span><strong id="kpi-occupied-rooms">0</strong><small>Số phòng có khách tại ngày xem</small></article><article class="kpi"><span>Tổng số khách</span><strong id="kpi-total-guests">0</strong><small>Khách đang lưu trú tại ngày xem</small></article>
         </div>
 
         <div class="dash-grid">
@@ -41,7 +41,9 @@
           <article class="card"><div class="card-head"><h3>Lũy kế tháng</h3></div><div class="month-box"><span>Doanh thu phòng gộp</span><b id="month-room">0 đ</b><span>Dịch vụ khác</span><b id="month-service">0 đ</b><span>Tổng doanh thu</span><strong id="month-total">0 đ</strong></div></article>
         </div>
 
-        <article class="card"><div class="card-head"><h3>Khách đang ở / hợp đồng dài hạn</h3><button class="link-btn" data-go="stays">Xem tất cả</button></div><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Loại giá</th><th>Ngày đến</th><th>Dự kiến đi</th><th>Giá HĐ</th><th>Giá ngày fallback</th></tr></thead><tbody id="dash-stays"></tbody></table></div></article>
+        <article class="card"><div class="card-head"><div><h3>Công suất phòng theo hạng</h3><p>Phòng đang sử dụng / tổng số phòng.</p></div><button class="btn ghost" id="open-inventory">Cấu hình số phòng</button></div><div class="table-wrap"><table class="occupancy-table"><thead><tr><th>Hạng phòng</th><th>Đang sử dụng</th><th>Tổng số phòng</th><th>Công suất</th></tr></thead><tbody id="occupancy-body"></tbody></table></div></article>
+
+        <article class="card"><div class="card-head"><h3>Khách đang ở / hợp đồng dài hạn</h3><button class="link-btn" data-go="stays">Xem tất cả</button></div><div class="table-wrap"><table><thead><tr><th>Phòng</th><th>Khách</th><th>Số khách</th><th>Loại giá</th><th>Ngày đến</th><th>Dự kiến đi</th><th>Giá HĐ</th><th>Tổng DT phòng</th><th>Giá ngày fallback</th></tr></thead><tbody id="dash-stays"></tbody></table></div></article>
       </section>
 
       <section class="view" id="view-new-stay">
@@ -57,7 +59,7 @@
             <label>Giá hợp đồng (đ) *<input name="contract_rate" type="number" min="0" required /></label>
             <label>Cách phân bổ<select name="allocation_method"><option value="actual_month_days">Theo ngày thực tế tháng (28/29/30/31)</option><option value="fixed_30">Cố định chia 30 ngày</option><option value="fixed_365">Năm chia 365 ngày</option></select></label>
             <label>Giá ngày fallback (đ)<input name="fallback_daily_rate" type="number" min="0" placeholder="Dùng khi checkout sớm" /></label>
-            <label>Số khách ăn sáng<input name="breakfast_guests" type="number" min="0" value="0" /></label>
+            <label>Tổng số khách lưu trú<input name="guest_count" type="number" min="1" value="1" /></label><label>Số khách ăn sáng<input name="breakfast_guests" type="number" min="0" value="0" /></label>
             <label>Giá điểm tâm/người<input name="breakfast_rate" type="number" min="0" value="100000" /></label>
             <label>Trạng thái thanh toán<select name="payment_method"><option value="Công nợ">Công nợ / Chưa thanh toán</option><option value="Đã cọc">Đã cọc</option><option value="Đã thanh toán">Đã thanh toán</option></select></label>
             <label>Thu tiền / Cọc ban đầu (đ)<input name="initial_payment_amount" type="number" min="0" value="0" /></label>
@@ -73,7 +75,7 @@
 
       <section class="view" id="view-stays">
         <article class="card"><div class="card-head"><div><h3>Danh sách lưu trú</h3><p>Khách ngày, tháng, năm và lịch sử checkout.</p></div><div class="filters"><input id="stay-search" placeholder="Tìm phòng / khách / công ty..."/><select id="stay-status"><option value="active">Đang ở</option><option value="checked_out">Đã checkout</option><option value="">Tất cả</option></select><button class="btn ghost" id="stay-refresh">Làm mới</button></div></div>
-          <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Phòng</th><th>Khách/Công ty</th><th>Giá</th><th>Check-in</th><th>Dự kiến</th><th>Phát sinh</th><th>Đã thu</th><th>Còn phải thu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="stays-body"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Phòng</th><th>Khách/Công ty</th><th>Giá</th><th>Check-in</th><th>Dự kiến</th><th>Tổng DT phòng</th><th>Phát sinh</th><th>Đã thu</th><th>Còn phải thu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="stays-body"></tbody></table></div>
         </article>
       </section>
 
@@ -132,6 +134,8 @@
       </section>
     </main>
   </div>
+
+  <dialog id="inventory-dialog"><form method="dialog" id="inventory-form" class="dialog-card"><div class="card-head"><div><h3>Cấu hình số phòng theo hạng</h3><p>Nhập tổng số phòng thực tế để tính công suất.</p></div><button class="icon-btn" value="cancel">×</button></div><div id="inventory-inputs" class="inventory-inputs"></div><label>PIN quản lý<input name="pin" type="password" inputmode="numeric" required /></label><div class="form-actions"><button class="btn primary" id="inventory-save" value="default">Lưu cấu hình</button><button class="btn ghost" value="cancel">Hủy</button></div></form></dialog>
 
   <dialog id="payment-dialog">
     <form method="dialog" id="payment-form" class="dialog-card">

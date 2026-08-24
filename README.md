@@ -97,3 +97,14 @@ Nếu tổng đúng thấp hơn số đã báo, Adjustment có thể là số â
 - API nhận được cả DD/MM/YYYY và YYYY-MM-DD.
 - Giao diện luôn đổi ngày DD/MM/YYYY sang ISO trước khi gọi API.
 - Không cần chốt ngày để thấy doanh thu.
+
+## V1.7.3 – Fix nút Checkout / Chuyển phòng
+- Sửa lỗi `Failed to execute 'text' on 'Response': body stream already read`.
+- API client chỉ đọc response body một lần và hiển thị đúng lỗi thật từ Worker.
+- Sửa thiếu `env` ở checkout preview.
+- Checkout và Chuyển phòng chỉ cập nhật ledger của đúng khách đang thao tác, không quét toàn bộ khách.
+- Khóa nút trong lúc xử lý để tránh double-click tạo giao dịch trùng.
+
+## V1.7.4
+- Công suất phòng theo hạng, tổng khách, cấu hình inventory, cột Tổng DT phòng riêng.
+- Tự migration guest_count và room_inventory.

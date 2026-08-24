@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS stays (
   fallback_daily_rate REAL NOT NULL DEFAULT 0,
   breakfast_guests INTEGER NOT NULL DEFAULT 0,
   breakfast_rate REAL NOT NULL DEFAULT 100000,
+  guest_count INTEGER NOT NULL DEFAULT 1,
   payment_method TEXT,
   note TEXT,
   status TEXT NOT NULL DEFAULT 'active', -- active | checked_out | cancelled
@@ -100,3 +101,5 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 CREATE INDEX IF NOT EXISTS idx_payments_stay ON payments(stay_id);
 CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
+
+CREATE TABLE IF NOT EXISTS room_inventory (room_type TEXT PRIMARY KEY,total_rooms INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL);
