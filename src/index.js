@@ -12,32 +12,32 @@ function todayVN() {
   return f.format(new Date());
 }
 function isDate(s) { return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')); }
-function normalizeDateParam(v){
-  const s=String(v||'').trim();
-  if(isDate(s)) return s;
-  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if(m){
-    const iso=`${m[3]}-${m[2]}-${m[1]}`;
-    if(isDate(iso)) return iso;
+function normalizeDateParam(v) {
+  const s = String(v || '').trim();
+  if (isDate(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (m) {
+    const iso = `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+    if (isDate(iso)) return iso;
   }
   return '';
 }
-function parseDate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
-function fmtDate(d) { return d.toISOString().slice(0,10); }
+function parseDate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function fmtDate(d) { return d.toISOString().slice(0, 10); }
 function addDays(s, n) { const d = parseDate(s); d.setUTCDate(d.getUTCDate() + n); return fmtDate(d); }
 function diffDays(a, b) { return Math.round((parseDate(b) - parseDate(a)) / 86400000); }
-function daysInMonth(s) { const d = parseDate(s); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 0)).getUTCDate(); }
+function daysInMonth(s) { const d = parseDate(s); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(); }
 function daysInYear(s) { const y = parseDate(s).getUTCFullYear(); return ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0) ? 366 : 365; }
-function minDate(a,b) { return a < b ? a : b; }
-function maxDate(a,b) { return a > b ? a : b; }
+function minDate(a, b) { return a < b ? a : b; }
+function maxDate(a, b) { return a > b ? a : b; }
 function requirePin(request, env) {
   const expected = String(env.ADMIN_PIN || '1000');
   return String(request.headers.get('x-admin-pin') || '') === expected;
 }
 function stayCode() {
   const d = new Date();
-  const ds = `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}`;
-  const r = Math.random().toString(36).slice(2,6).toUpperCase();
+  const ds = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+  const r = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `SMR-${ds}-${r}`;
 }
 function dailyGross(stay, revenueDate) {
@@ -56,21 +56,22 @@ function splitGross(stay, gross) {
   return { breakfast: breakfastAmount, netRoom: gross - breakfastAmount };
 }
 
-const SERVICE_CATEGORIES = new Set(['pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small','golf_ticket','swim_lesson','gym_month','tennis_day','minibar','laundry','restaurant','extra_bed','others']);
-const POOL_CATEGORIES = ['pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small'];
-let serviceSchemaReady=false;
-async function ensureServiceSchema(env){
-  if(serviceSchemaReady) return;
-  const cols=(await env.DB.prepare('PRAGMA table_info(services)').all()).results||[];
-  const names=new Set(cols.map(c=>c.name));
-  if(!names.has('quantity')) await env.DB.prepare('ALTER TABLE services ADD COLUMN quantity REAL NOT NULL DEFAULT 1').run();
-  if(!names.has('unit_price')) await env.DB.prepare('ALTER TABLE services ADD COLUMN unit_price REAL NOT NULL DEFAULT 0').run();
-  serviceSchemaReady=true;
+const SERVICE_CATEGORIES = new Set(['pool_vbn', 'pool_vbl', 'pool_vbt_large', 'pool_vbt_small', 'golf_ticket', 'swim_lesson', 'gym_month', 'tennis_day', 'minibar', 'laundry', 'restaurant', 'extra_bed', 'others']);
+const POOL_CATEGORIES = ['pool_vbn', 'pool_vbl', 'pool_vbt_large', 'pool_vbt_small'];
+
+let serviceSchemaReady = false;
+async function ensureServiceSchema(env) {
+  if (serviceSchemaReady) return;
+  const cols = (await env.DB.prepare('PRAGMA table_info(services)').all()).results || [];
+  const names = new Set(cols.map(c => c.name));
+  if (!names.has('quantity')) await env.DB.prepare('ALTER TABLE services ADD COLUMN quantity REAL NOT NULL DEFAULT 1').run();
+  if (!names.has('unit_price')) await env.DB.prepare('ALTER TABLE services ADD COLUMN unit_price REAL NOT NULL DEFAULT 0').run();
+  serviceSchemaReady = true;
 }
 
-let paymentSchemaReady=false;
-async function ensurePaymentSchema(env){
-  if(paymentSchemaReady) return;
+let paymentSchemaReady = false;
+async function ensurePaymentSchema(env) {
+  if (paymentSchemaReady) return;
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT, stay_id INTEGER NOT NULL, payment_date TEXT NOT NULL,
     payment_kind TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, payment_method TEXT NOT NULL,
@@ -78,12 +79,12 @@ async function ensurePaymentSchema(env){
   )`).run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_payments_stay ON payments(stay_id)').run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)').run();
-  paymentSchemaReady=true;
+  paymentSchemaReady = true;
 }
 
-let segmentSchemaReady=false;
-async function ensureSegmentSchema(env){
-  if(segmentSchemaReady) return;
+let segmentSchemaReady = false;
+async function ensureSegmentSchema(env) {
+  if (segmentSchemaReady) return;
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS stay_segments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     stay_id INTEGER NOT NULL,
@@ -99,600 +100,773 @@ async function ensureSegmentSchema(env){
   )`).run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_stay_segments_stay ON stay_segments(stay_id,start_date)').run();
 
-  const cols=(await env.DB.prepare('PRAGMA table_info(daily_room_revenue)').all()).results||[];
-  const names=new Set(cols.map(c=>c.name));
-  if(!names.has('segment_id')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN segment_id INTEGER').run();
-  if(!names.has('room_no_snapshot')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN room_no_snapshot TEXT').run();
-  if(!names.has('room_type_snapshot')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN room_type_snapshot TEXT').run();
-  if(!names.has('contract_rate_snapshot')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN contract_rate_snapshot REAL').run();
+  const cols = (await env.DB.prepare('PRAGMA table_info(daily_room_revenue)').all()).results || [];
+  const names = new Set(cols.map(c => c.name));
+  if (!names.has('segment_id')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN segment_id INTEGER').run();
+  if (!names.has('room_no_snapshot')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN room_no_snapshot TEXT').run();
+  if (!names.has('room_type_snapshot')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN room_type_snapshot TEXT').run();
+  if (!names.has('contract_rate_snapshot')) await env.DB.prepare('ALTER TABLE daily_room_revenue ADD COLUMN contract_rate_snapshot REAL').run();
 
-  // Backfill one initial segment for legacy stays that have never used room transfer.
   await env.DB.prepare(`INSERT INTO stay_segments(stay_id,start_date,end_date,room_no,room_type,pricing_plan,contract_rate,allocation_method,created_at)
     SELECT s.id,s.check_in_date,NULL,s.room_no,s.room_type,s.pricing_plan,s.contract_rate,s.allocation_method,?
     FROM stays s
     WHERE NOT EXISTS(SELECT 1 FROM stay_segments sg WHERE sg.stay_id=s.id)`).bind(nowISO()).run();
 
-  segmentSchemaReady=true;
+  segmentSchemaReady = true;
 }
 
-async function segmentForDate(env, stay, date){
+async function segmentForDate(env, stay, date) {
   await ensureSegmentSchema(env);
-  const seg=await env.DB.prepare(`SELECT * FROM stay_segments
+  const seg = await env.DB.prepare(`SELECT * FROM stay_segments
     WHERE stay_id=? AND start_date<=? AND (end_date IS NULL OR end_date>=?)
-    ORDER BY start_date DESC,id DESC LIMIT 1`).bind(stay.id,date,date).first();
+    ORDER BY start_date DESC,id DESC LIMIT 1`).bind(stay.id, date, date).first();
   return seg || {
-    id:null, stay_id:stay.id, start_date:stay.check_in_date, end_date:null,
-    room_no:stay.room_no, room_type:stay.room_type, pricing_plan:stay.pricing_plan,
-    contract_rate:stay.contract_rate, allocation_method:stay.allocation_method
+    id: null, stay_id: stay.id, start_date: stay.check_in_date, end_date: null,
+    room_no: stay.room_no, room_type: stay.room_type, pricing_plan: stay.pricing_plan,
+    contract_rate: stay.contract_rate, allocation_method: stay.allocation_method
   };
 }
 
-async function log(env, action, entityType, entityId, detail='') {
-  try { await env.DB.prepare('INSERT INTO audit_log(action,entity_type,entity_id,detail,created_at) VALUES(?,?,?,?,?)').bind(action,entityType,String(entityId ?? ''),detail,nowISO()).run(); } catch {}
+async function log(env, action, entityType, entityId, detail = '') {
+  try { await env.DB.prepare('INSERT INTO audit_log(action,entity_type,entity_id,detail,created_at) VALUES(?,?,?,?,?)').bind(action, entityType, String(entityId ?? ''), detail, nowISO()).run(); } catch {}
 }
 
-
-const ROOM_CATEGORIES=['Family Villa','Suite Villa','Deluxe','Superior','Standard B','Standard A','Sweety room'];
-function canonicalRoomType(v){
-  const s=String(v||'').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
-  if(!s)return 'Khác';
-  if(s.includes('family')&&s.includes('villa'))return 'Family Villa';
-  if(s.includes('suite')&&s.includes('villa'))return 'Suite Villa';
-  if(s.includes('deluxe'))return 'Deluxe';
-  if(s.includes('superior'))return 'Superior';
-  if((s.includes('standard')||s.includes('stand'))&&/\bb\b/.test(s))return 'Standard B';
-  if((s.includes('standard')||s.includes('stand'))&&/\ba\b/.test(s))return 'Standard A';
-  if(s.includes('sweety')||s.includes('sweet room'))return 'Sweety room';
-  return String(v||'Khác').trim()||'Khác';
+const ROOM_CATEGORIES = ['Family Villa', 'Suite Villa', 'Deluxe', 'Superior', 'Standard B', 'Standard A', 'Sweety room'];
+function canonicalRoomType(v) {
+  const s = String(v || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  if (!s) return 'Khác';
+  if (s.includes('family') && s.includes('villa')) return 'Family Villa';
+  if (s.includes('suite') && s.includes('villa')) return 'Suite Villa';
+  if (s.includes('deluxe')) return 'Deluxe';
+  if (s.includes('superior')) return 'Superior';
+  if ((s.includes('standard') || s.includes('stand')) && /\bb\b/.test(s)) return 'Standard B';
+  if ((s.includes('standard') || s.includes('stand')) && /\ba\b/.test(s)) return 'Standard A';
+  if (s.includes('sweety') || s.includes('sweet room')) return 'Sweety room';
+  return String(v || 'Khác').trim() || 'Khác';
 }
-let hotelCapacitySchemaReady=false;
-async function ensureHotelCapacitySchema(env){
-  if(hotelCapacitySchemaReady)return;
-  const cols=(await env.DB.prepare('PRAGMA table_info(stays)').all()).results||[];
-  const names=new Set(cols.map(c=>c.name));
-  if(!names.has('guest_count'))await env.DB.prepare('ALTER TABLE stays ADD COLUMN guest_count INTEGER NOT NULL DEFAULT 1').run();
+
+let hotelCapacitySchemaReady = false;
+async function ensureHotelCapacitySchema(env) {
+  if (hotelCapacitySchemaReady) return;
+  const cols = (await env.DB.prepare('PRAGMA table_info(stays)').all()).results || [];
+  const names = new Set(cols.map(c => c.name));
+  if (!names.has('guest_count')) await env.DB.prepare('ALTER TABLE stays ADD COLUMN guest_count INTEGER NOT NULL DEFAULT 1').run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS room_inventory(
     room_type TEXT PRIMARY KEY,total_rooms INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL
   )`).run();
-  const ts=nowISO();
-  for(const rt of ROOM_CATEGORIES)await env.DB.prepare('INSERT OR IGNORE INTO room_inventory(room_type,total_rooms,updated_at) VALUES(?,?,?)').bind(rt,0,ts).run();
-  hotelCapacitySchemaReady=true;
+  const ts = nowISO();
+  const stmts = ROOM_CATEGORIES.map(rt =>
+    env.DB.prepare('INSERT OR IGNORE INTO room_inventory(room_type,total_rooms,updated_at) VALUES(?,?,?)').bind(rt, 0, ts)
+  );
+  if (stmts.length > 0) await env.DB.batch(stmts);
+  hotelCapacitySchemaReady = true;
 }
+
 async function getStay(env, id) {
   return await env.DB.prepare('SELECT * FROM stays WHERE id=?').bind(id).first();
 }
 
-async function financialSummary(env, stay, throughDate=todayVN()){
-  await ensurePaymentSchema(env);
-  if(stay.status==='active') await ensureLedgerThrough(env,minDate(throughDate,todayVN()));
-  const room=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
-      COALESCE(SUM(breakfast_amount),0) breakfast,
-      COALESCE(SUM(net_room_amount),0) net_room
-      FROM daily_room_revenue WHERE stay_id=? AND revenue_date<=?`).bind(stay.id,throughDate).first())||{};
-  const svc=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total
-      FROM services WHERE stay_id=? AND service_date<=?`).bind(stay.id,throughDate).first())||{};
-  const pay=(await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total
-      FROM payments WHERE stay_id=? AND payment_date<=?`).bind(stay.id,throughDate).first())||{};
-  const roomTotal=num(room.total), serviceTotal=num(svc.total), paidTotal=num(pay.total);
-  return {room_total:roomTotal,room_net:num(room.net_room),breakfast_total:num(room.breakfast),
-    service_total:serviceTotal,charge_total:roomTotal+serviceTotal,paid_total:paidTotal,
-    balance:(roomTotal+serviceTotal)-paidTotal};
-}
-async function updatePaymentStatus(env, stayId){
-  const stay=await getStay(env,stayId); if(!stay) return;
-  const f=await financialSummary(env,stay,todayVN());
-  let status='Công nợ';
-  if(f.paid_total>0 && f.balance>0) status='Đã thu một phần';
-  if(f.paid_total>0 && f.balance<=0) status='Đã thanh toán';
-  await env.DB.prepare('UPDATE stays SET payment_method=?,updated_at=? WHERE id=?').bind(status,nowISO(),stayId).run();
-}
-
-
-async function ensureLedgerForDate(env, date) {
-  date=normalizeDateParam(date);
-  if(!date || date>todayVN()) return;
-  await ensureSegmentSchema(env);
-
-  const closed=await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(date).first();
-  if(closed) return;
-
-  const stays=(await env.DB.prepare(`SELECT * FROM stays
-    WHERE check_in_date<=?
-      AND status IN ('active','checked_out')
-      AND (actual_check_out_date IS NULL OR actual_check_out_date>?)`)
-    .bind(date,date).all()).results||[];
-
-  const ts=nowISO();
-  for(const stay of stays){
-    const seg=await segmentForDate(env,stay,date);
-    const gross=dailyGross(seg,date);
-    const sp=splitGross(stay,gross);
-    await env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
-      (stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at,
-       segment_id,room_no_snapshot,room_type_snapshot,contract_rate_snapshot)
-      VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
-      .bind(stay.id,date,'accrual',gross,sp.breakfast,sp.netRoom,gross,seg.pricing_plan,seg.allocation_method,
-        `Phân bổ ${seg.room_type||'hạng phòng'} · phòng ${seg.room_no}`,ts,
-        seg.id,seg.room_no,seg.room_type,seg.contract_rate).run();
+async function runBatchChunked(env, stmts, chunkSize = 80) {
+  for (let i = 0; i < stmts.length; i += chunkSize) {
+    await env.DB.batch(stmts.slice(i, i + chunkSize));
   }
 }
 
+async function financialSummary(env, stay, throughDate = todayVN()) {
+  await ensurePaymentSchema(env);
+  if (stay.status === 'active') {
+    await ensureLedgerForStayRange(env, stay, stay.check_in_date, minDate(throughDate, todayVN()));
+  }
+  const [room, svc, pay] = await Promise.all([
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
+      COALESCE(SUM(breakfast_amount),0) breakfast,
+      COALESCE(SUM(net_room_amount),0) net_room
+      FROM daily_room_revenue WHERE stay_id=? AND revenue_date<=?`).bind(stay.id, throughDate).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total
+      FROM services WHERE stay_id=? AND service_date<=?`).bind(stay.id, throughDate).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total
+      FROM payments WHERE stay_id=? AND payment_date<=?`).bind(stay.id, throughDate).first()
+  ]);
+  const roomTotal = num(room?.total), serviceTotal = num(svc?.total), paidTotal = num(pay?.total);
+  return {
+    room_total: roomTotal,
+    room_net: num(room?.net_room),
+    breakfast_total: num(room?.breakfast),
+    service_total: serviceTotal,
+    charge_total: roomTotal + serviceTotal,
+    paid_total: paidTotal,
+    balance: (roomTotal + serviceTotal) - paidTotal
+  };
+}
 
-async function ensureLedgerForStayRange(env, stayOrId, fromDate, toDate) {
+async function updatePaymentStatus(env, stayId) {
+  const stay = await getStay(env, stayId);
+  if (!stay) return;
+  const f = await financialSummary(env, stay, todayVN());
+  let status = 'Công nợ';
+  if (f.paid_total > 0 && f.balance > 0) status = 'Đã thu một phần';
+  if (f.paid_total > 0 && f.balance <= 0) status = 'Đã thanh toán';
+  await env.DB.prepare('UPDATE stays SET payment_method=?,updated_at=? WHERE id=?').bind(status, nowISO(), stayId).run();
+}
+
+async function ensureLedgerForDate(env, date) {
+  date = normalizeDateParam(date);
+  if (!date || date > todayVN()) return;
   await ensureSegmentSchema(env);
-  const stay=typeof stayOrId==='object'?stayOrId:await getStay(env,stayOrId);
-  if(!stay) return;
-  let start=normalizeDateParam(fromDate)||stay.check_in_date;
-  let end=normalizeDateParam(toDate)||todayVN();
-  if(start<stay.check_in_date) start=stay.check_in_date;
-  if(stay.actual_check_out_date) end=minDate(end,addDays(stay.actual_check_out_date,-1));
-  if(end>todayVN()) end=todayVN();
-  if(end<start) return;
 
-  const closedRows=(await env.DB.prepare('SELECT report_date FROM day_closings WHERE report_date>=? AND report_date<=?')
-    .bind(start,end).all()).results||[];
-  const closed=new Set(closedRows.map(r=>r.report_date));
-  const ts=nowISO();
+  const closed = await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(date).first();
+  if (closed) return;
 
-  let d=start,guard=0;
-  while(d<=end && guard++<2000){
-    if(!closed.has(d)){
-      const seg=await segmentForDate(env,stay,d);
-      const gross=dailyGross(seg,d),sp=splitGross(stay,gross);
-      await env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
+  const [staysRs, segsRs, existingRs] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM stays
+      WHERE check_in_date<=?
+        AND status IN ('active','checked_out')
+        AND (actual_check_out_date IS NULL OR actual_check_out_date>?)`)
+      .bind(date, date).all(),
+    env.DB.prepare(`SELECT * FROM stay_segments WHERE start_date<=? AND (end_date IS NULL OR end_date>=?) ORDER BY start_date DESC, id DESC`)
+      .bind(date, date).all(),
+    env.DB.prepare(`SELECT stay_id FROM daily_room_revenue WHERE revenue_date=? AND source_kind='accrual'`)
+      .bind(date).all()
+  ]);
+
+  const stays = staysRs.results || [];
+  if (!stays.length) return;
+
+  const existingStayIds = new Set((existingRs.results || []).map(r => Number(r.stay_id)));
+  const segByStay = new Map();
+  for (const s of (segsRs.results || [])) {
+    if (!segByStay.has(s.stay_id)) segByStay.set(s.stay_id, s);
+  }
+
+  const ts = nowISO();
+  const stmts = [];
+  for (const stay of stays) {
+    if (existingStayIds.has(Number(stay.id))) continue;
+    const seg = segByStay.get(stay.id) || {
+      id: null, stay_id: stay.id, start_date: stay.check_in_date, end_date: null,
+      room_no: stay.room_no, room_type: stay.room_type, pricing_plan: stay.pricing_plan,
+      contract_rate: stay.contract_rate, allocation_method: stay.allocation_method
+    };
+    const gross = dailyGross(seg, date);
+    const sp = splitGross(stay, gross);
+    stmts.push(
+      env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
         (stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at,
          segment_id,room_no_snapshot,room_type_snapshot,contract_rate_snapshot)
         VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
-        .bind(stay.id,d,'accrual',gross,sp.breakfast,sp.netRoom,gross,seg.pricing_plan,seg.allocation_method,
-          `Phân bổ ${seg.room_type||'hạng phòng'} · phòng ${seg.room_no}`,ts,
-          seg.id,seg.room_no,seg.room_type,seg.contract_rate).run();
-    }
-    d=addDays(d,1);
+        .bind(stay.id, date, 'accrual', gross, sp.breakfast, sp.netRoom, gross, seg.pricing_plan, seg.allocation_method,
+          `Phân bổ ${seg.room_type || 'hạng phòng'} · phòng ${seg.room_no}`, ts,
+          seg.id, seg.room_no, seg.room_type, seg.contract_rate)
+    );
   }
+  if (stmts.length > 0) await runBatchChunked(env, stmts);
+}
+
+async function ensureLedgerForStayRange(env, stayOrId, fromDate, toDate) {
+  await ensureSegmentSchema(env);
+  const stay = typeof stayOrId === 'object' ? stayOrId : await getStay(env, stayOrId);
+  if (!stay) return;
+  let start = normalizeDateParam(fromDate) || stay.check_in_date;
+  let end = normalizeDateParam(toDate) || todayVN();
+  if (start < stay.check_in_date) start = stay.check_in_date;
+  if (stay.actual_check_out_date) end = minDate(end, addDays(stay.actual_check_out_date, -1));
+  if (end > todayVN()) end = todayVN();
+  if (end < start) return;
+
+  const [closedRows, segRows, existingRows] = await Promise.all([
+    env.DB.prepare('SELECT report_date FROM day_closings WHERE report_date>=? AND report_date<=?').bind(start, end).all(),
+    env.DB.prepare('SELECT * FROM stay_segments WHERE stay_id=? ORDER BY start_date DESC, id DESC').bind(stay.id).all(),
+    env.DB.prepare("SELECT revenue_date FROM daily_room_revenue WHERE stay_id=? AND source_kind='accrual' AND revenue_date>=? AND revenue_date<=?").bind(stay.id, start, end).all()
+  ]);
+
+  const closed = new Set((closedRows.results || []).map(r => r.report_date));
+  const existing = new Set((existingRows.results || []).map(r => r.revenue_date));
+  const segments = segRows.results || [];
+  const ts = nowISO();
+  const stmts = [];
+
+  let d = start, guard = 0;
+  while (d <= end && guard++ < 2000) {
+    if (!closed.has(d) && !existing.has(d)) {
+      const seg = segments.find(s => s.start_date <= d && (!s.end_date || s.end_date >= d)) || {
+        id: null, room_no: stay.room_no, room_type: stay.room_type,
+        pricing_plan: stay.pricing_plan, contract_rate: stay.contract_rate, allocation_method: stay.allocation_method
+      };
+      const gross = dailyGross(seg, d), sp = splitGross(stay, gross);
+      stmts.push(
+        env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
+          (stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at,
+           segment_id,room_no_snapshot,room_type_snapshot,contract_rate_snapshot)
+          VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
+          .bind(stay.id, d, 'accrual', gross, sp.breakfast, sp.netRoom, gross, seg.pricing_plan, seg.allocation_method,
+            `Phân bổ ${seg.room_type || 'hạng phòng'} · phòng ${seg.room_no}`, ts,
+            seg.id, seg.room_no, seg.room_type, seg.contract_rate)
+      );
+    }
+    d = addDays(d, 1);
+  }
+  if (stmts.length > 0) await runBatchChunked(env, stmts);
 }
 
 async function ensureLedgerThrough(env, throughDate) {
+  throughDate = normalizeDateParam(throughDate);
   if (!isDate(throughDate)) return;
   await ensureSegmentSchema(env);
-  const stays = (await env.DB.prepare(`SELECT * FROM stays WHERE status IN ('active','checked_out') AND check_in_date <= ?`).bind(throughDate).all()).results || [];
-  const closedRows = (await env.DB.prepare('SELECT report_date FROM day_closings WHERE report_date <= ?').bind(throughDate).all()).results || [];
-  const closed = new Set(closedRows.map(r => r.report_date));
+
+  const [staysRs, closedRs, segsRs, existingRs] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM stays WHERE status IN ('active','checked_out') AND check_in_date <= ?`).bind(throughDate).all(),
+    env.DB.prepare('SELECT report_date FROM day_closings WHERE report_date <= ?').bind(throughDate).all(),
+    env.DB.prepare('SELECT * FROM stay_segments ORDER BY start_date DESC, id DESC').all(),
+    env.DB.prepare("SELECT stay_id, revenue_date, room_no_snapshot FROM daily_room_revenue WHERE source_kind='accrual' AND revenue_date <= ?").bind(throughDate).all()
+  ]);
+
+  const stays = staysRs.results || [];
+  if (!stays.length) return;
+
+  const closed = new Set((closedRs.results || []).map(r => r.report_date));
+  const existingMap = new Map();
+  for (const r of (existingRs.results || [])) {
+    existingMap.set(`${r.stay_id}_${r.revenue_date}`, r.room_no_snapshot);
+  }
+
+  const segByStay = new Map();
+  for (const s of (segsRs.results || [])) {
+    if (!segByStay.has(s.stay_id)) segByStay.set(s.stay_id, []);
+    segByStay.get(s.stay_id).push(s);
+  }
+
   const ts = nowISO();
+  const stmts = [];
 
   for (const stay of stays) {
     let start = stay.check_in_date;
     let end = throughDate;
-    // Ngày checkout không thuộc Room Revenue; khoản thu checkout đi DailyPayment.
     if (stay.actual_check_out_date) end = minDate(end, addDays(stay.actual_check_out_date, -1));
     if (end < start) continue;
 
+    const segments = segByStay.get(stay.id) || [];
     let d = start;
     let guard = 0;
     while (d <= end && guard++ < 2000) {
       if (!closed.has(d)) {
-        const seg = await segmentForDate(env, stay, d);
-        const gross = dailyGross(seg, d);
-        const sp = splitGross(stay, gross);
-        await env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
-          (stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at,
-           segment_id,room_no_snapshot,room_type_snapshot,contract_rate_snapshot)
-          VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
-          .bind(
-            stay.id,d,'accrual',gross,sp.breakfast,sp.netRoom,gross,seg.pricing_plan,seg.allocation_method,
-            `Phân bổ ${seg.room_type||'hạng phòng'} · phòng ${seg.room_no}`,ts,
-            seg.id,seg.room_no,seg.room_type,seg.contract_rate
-          ).run();
+        const key = `${stay.id}_${d}`;
+        const seg = segments.find(s => s.start_date <= d && (!s.end_date || s.end_date >= d)) || {
+          id: null, room_no: stay.room_no, room_type: stay.room_type,
+          pricing_plan: stay.pricing_plan, contract_rate: stay.contract_rate, allocation_method: stay.allocation_method
+        };
 
-        // Dòng legacy chưa có snapshot: bổ sung snapshot nếu ngày chưa khóa.
-        await env.DB.prepare(`UPDATE daily_room_revenue
-          SET segment_id=COALESCE(segment_id,?),room_no_snapshot=COALESCE(room_no_snapshot,?),
-              room_type_snapshot=COALESCE(room_type_snapshot,?),contract_rate_snapshot=COALESCE(contract_rate_snapshot,?)
-          WHERE stay_id=? AND revenue_date=? AND source_kind='accrual' AND locked=0`)
-          .bind(seg.id,seg.room_no,seg.room_type,seg.contract_rate,stay.id,d).run();
+        if (!existingMap.has(key)) {
+          const gross = dailyGross(seg, d);
+          const sp = splitGross(stay, gross);
+          stmts.push(
+            env.DB.prepare(`INSERT OR IGNORE INTO daily_room_revenue
+              (stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at,
+               segment_id,room_no_snapshot,room_type_snapshot,contract_rate_snapshot)
+              VALUES(?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)`)
+              .bind(
+                stay.id, d, 'accrual', gross, sp.breakfast, sp.netRoom, gross, seg.pricing_plan, seg.allocation_method,
+                `Phân bổ ${seg.room_type || 'hạng phòng'} · phòng ${seg.room_no}`, ts,
+                seg.id, seg.room_no, seg.room_type, seg.contract_rate
+              )
+          );
+        } else if (existingMap.get(key) === null) {
+          stmts.push(
+            env.DB.prepare(`UPDATE daily_room_revenue
+              SET segment_id=COALESCE(segment_id,?),room_no_snapshot=COALESCE(room_no_snapshot,?),
+                  room_type_snapshot=COALESCE(room_type_snapshot,?),contract_rate_snapshot=COALESCE(contract_rate_snapshot,?)
+              WHERE stay_id=? AND revenue_date=? AND source_kind='accrual' AND locked=0`)
+              .bind(seg.id, seg.room_no, seg.room_type, seg.contract_rate, stay.id, d)
+          );
+        }
       }
-      d = addDays(d,1);
+      d = addDays(d, 1);
     }
   }
+
+  if (stmts.length > 0) await runBatchChunked(env, stmts);
 }
 
-async function dailySummary(env, date) {
-  await ensureLedgerForDate(env, date);
-  const room = await env.DB.prepare(`SELECT
-      COALESCE(SUM(CASE WHEN source_kind='accrual' THEN net_room_amount ELSE 0 END),0) room_base,
-      COALESCE(SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END),0) adjustment,
-      COALESCE(SUM(breakfast_amount),0) breakfast,
-      COALESCE(SUM(net_room_amount),0) room_net,
-      COALESCE(SUM(amount),0) room_gross
-    FROM daily_room_revenue WHERE revenue_date=?`).bind(date).first();
+async function dailySummary(env, date, skipEnsure = false) {
+  if (!skipEnsure) await ensureLedgerForDate(env, date);
   await ensureServiceSchema(env);
-  const svc = await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
-      COALESCE(SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) pool_total,
-      COALESCE(SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) other_total,
-      COALESCE(SUM(CASE WHEN category='minibar' THEN amount ELSE 0 END),0) minibar,
-      COALESCE(SUM(CASE WHEN category='laundry' THEN amount ELSE 0 END),0) laundry,
-      COALESCE(SUM(CASE WHEN category='restaurant' THEN amount ELSE 0 END),0) restaurant,
-      COALESCE(SUM(CASE WHEN category='extra_bed' THEN amount ELSE 0 END),0) extra_bed
-    FROM services WHERE service_date=?`).bind(date).first();
-  const closing = await env.DB.prepare('SELECT * FROM day_closings WHERE report_date=?').bind(date).first();
+  const [room, svc, closing] = await Promise.all([
+    env.DB.prepare(`SELECT
+        COALESCE(SUM(CASE WHEN source_kind='accrual' THEN net_room_amount ELSE 0 END),0) room_base,
+        COALESCE(SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END),0) adjustment,
+        COALESCE(SUM(breakfast_amount),0) breakfast,
+        COALESCE(SUM(net_room_amount),0) room_net,
+        COALESCE(SUM(amount),0) room_gross
+      FROM daily_room_revenue WHERE revenue_date=?`).bind(date).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total,
+        COALESCE(SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) pool_total,
+        COALESCE(SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) other_total,
+        COALESCE(SUM(CASE WHEN category='minibar' THEN amount ELSE 0 END),0) minibar,
+        COALESCE(SUM(CASE WHEN category='laundry' THEN amount ELSE 0 END),0) laundry,
+        COALESCE(SUM(CASE WHEN category='restaurant' THEN amount ELSE 0 END),0) restaurant,
+        COALESCE(SUM(CASE WHEN category='extra_bed' THEN amount ELSE 0 END),0) extra_bed
+      FROM services WHERE service_date=?`).bind(date).first(),
+    env.DB.prepare('SELECT * FROM day_closings WHERE report_date=?').bind(date).first()
+  ]);
   const total = num(room?.room_gross) + num(svc?.total);
   return { date, room: room || {}, services: svc || {}, total, closing: closing || null };
 }
 
-async function monthSummary(env, ym) {
-  const [y,m] = ym.split('-').map(Number);
-  const start = `${y}-${String(m).padStart(2,'0')}-01`;
-  const end = fmtDate(new Date(Date.UTC(y,m,0)));
-  await ensureLedgerThrough(env, minDate(end, todayVN()));
-  const r = await env.DB.prepare(`SELECT COALESCE(SUM(net_room_amount),0) room_net,
-      COALESCE(SUM(breakfast_amount),0) breakfast,
-      COALESCE(SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END),0) adjustment,
-      COALESCE(SUM(amount),0) room_gross
-    FROM daily_room_revenue WHERE revenue_date BETWEEN ? AND ?`).bind(start,end).first();
+async function monthSummary(env, ym, skipEnsure = false) {
+  const [y, m] = ym.split('-').map(Number);
+  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+  const end = fmtDate(new Date(Date.UTC(y, m, 0)));
+  if (!skipEnsure) await ensureLedgerThrough(env, minDate(end, todayVN()));
   await ensureServiceSchema(env);
-  const s = await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) service_total,
-      COALESCE(SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) pool_total,
-      COALESCE(SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) other_total
-    FROM services WHERE service_date BETWEEN ? AND ?`).bind(start,end).first();
-  const total = num(r?.room_gross)+num(s?.service_total);
-  return { start,end, room:r||{}, services:s||{}, total };
+  const [r, s] = await Promise.all([
+    env.DB.prepare(`SELECT COALESCE(SUM(net_room_amount),0) room_net,
+        COALESCE(SUM(breakfast_amount),0) breakfast,
+        COALESCE(SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END),0) adjustment,
+        COALESCE(SUM(amount),0) room_gross
+      FROM daily_room_revenue WHERE revenue_date BETWEEN ? AND ?`).bind(start, end).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) service_total,
+        COALESCE(SUM(CASE WHEN category IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) pool_total,
+        COALESCE(SUM(CASE WHEN category NOT IN ('pool_vbn','pool_vbl','pool_vbt_large','pool_vbt_small') THEN amount ELSE 0 END),0) other_total
+      FROM services WHERE service_date BETWEEN ? AND ?`).bind(start, end).first()
+  ]);
+  const total = num(r?.room_gross) + num(s?.service_total);
+  return { start, end, room: r || {}, services: s || {}, total };
 }
 
 async function apiDashboard(request, env, url) {
-  const date=normalizeDateParam(url.searchParams.get('date'))||todayVN(),ym=date.slice(0,7);
-  await ensureHotelCapacitySchema(env);await ensureLedgerForDate(env,date);
-  const daily=await dailySummary(env,date),month=await monthSummary(env,ym);
-  const active=(await env.DB.prepare(`SELECT s.id,s.code,s.guest_name,s.company_name,s.check_in_date,s.expected_check_out_date,
-      s.pricing_plan,s.contract_rate,s.fallback_daily_rate,COALESCE(s.guest_count,1) guest_count,
-      COALESCE(sg.room_no,s.room_no) room_no,COALESCE(sg.room_type,s.room_type) room_type
-    FROM stays s LEFT JOIN stay_segments sg ON sg.id=(
-      SELECT x.id FROM stay_segments x WHERE x.stay_id=s.id AND x.start_date<=? AND (x.end_date IS NULL OR x.end_date>=?)
-      ORDER BY x.start_date DESC,x.id DESC LIMIT 1)
-    WHERE s.check_in_date<=? AND s.status IN ('active','checked_out') AND (s.actual_check_out_date IS NULL OR s.actual_check_out_date>?)
-    ORDER BY COALESCE(sg.room_no,s.room_no),s.id`).bind(date,date,date,date).all()).results||[];
-  const totalGuests=active.reduce((sum,r)=>sum+Math.max(1,int(r.guest_count,1)),0);
-  const occupiedRooms=new Set(active.map(r=>String(r.room_no||'').trim()).filter(Boolean)).size;
-  const inv=(await env.DB.prepare('SELECT room_type,total_rooms FROM room_inventory').all()).results||[];
-  const totals=new Map(inv.map(r=>[r.room_type,int(r.total_rooms)]));
-  const occupancy=ROOM_CATEGORIES.map(rt=>{const set=new Set(active.filter(r=>canonicalRoomType(r.room_type)===rt).map(r=>String(r.room_no||'').trim()).filter(Boolean));const o=set.size,t=totals.get(rt)||0;return{room_type:rt,occupied_rooms:o,total_rooms:t,occupancy_rate:t>0?o/t*100:null}});
-  const rr=(await env.DB.prepare(`SELECT s.id,COALESCE(SUM(r.amount),0) room_revenue_total FROM stays s LEFT JOIN daily_room_revenue r ON r.stay_id=s.id AND r.revenue_date<=? GROUP BY s.id`).bind(date).all()).results||[];
-  const rm=new Map(rr.map(r=>[Number(r.id),num(r.room_revenue_total)]));
-  const activeWithRevenue=active.map(r=>({...r,room_revenue_total:rm.get(Number(r.id))||0}));
-  const checkoutToday=(await env.DB.prepare(`SELECT COUNT(*) c FROM stays WHERE actual_check_out_date=? AND status='checked_out'`).bind(date).first())?.c||0;
-  const points=[];for(let x=6;x>=0;x--){const d=addDays(date,-x),ds=await dailySummary(env,d);points.push({date:d,room:num(ds.room.room_gross),service:num(ds.services.total),total:num(ds.total)})}
-  return json({ok:true,date,daily,month,active_stays:activeWithRevenue,active_count:active.length,occupied_rooms:occupiedRooms,total_guests:totalGuests,checkout_today:checkoutToday,occupancy,points});
-}
-async function apiRoomInventory(request,env){
+  const date = normalizeDateParam(url.searchParams.get('date')) || todayVN(), ym = date.slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const monthEnd = fmtDate(new Date(Date.UTC(y, m, 0)));
+
   await ensureHotelCapacitySchema(env);
-  if(request.method==='GET'){const rows=(await env.DB.prepare('SELECT room_type,total_rooms,updated_at FROM room_inventory ORDER BY room_type').all()).results||[];return json({ok:true,rows})}
-  if(request.method==='POST'){
-    if(!checkAdmin(request,env))return json({error:'PIN quản lý không đúng.'},401);
-    const b=await request.json(),items=Array.isArray(b.items)?b.items:[],ts=nowISO();
-    for(const rt of ROOM_CATEGORIES){const item=items.find(x=>canonicalRoomType(x.room_type)===rt),total=Math.max(0,int(item?.total_rooms,0));await env.DB.prepare(`INSERT INTO room_inventory(room_type,total_rooms,updated_at) VALUES(?,?,?) ON CONFLICT(room_type) DO UPDATE SET total_rooms=excluded.total_rooms,updated_at=excluded.updated_at`).bind(rt,total,ts).run()}
-    return json({ok:true})
+  await ensureServiceSchema(env);
+  // Chạy 1 lần duy nhất cho toàn bộ lịch sử đến cuối tháng/hôm nay
+  await ensureLedgerThrough(env, minDate(maxDate(date, monthEnd), todayVN()));
+
+  const [daily, month, activeRs, invRs, rrRs, checkoutTodayRow] = await Promise.all([
+    dailySummary(env, date, true),
+    monthSummary(env, ym, true),
+    env.DB.prepare(`SELECT s.id,s.code,s.guest_name,s.company_name,s.check_in_date,s.expected_check_out_date,
+        s.pricing_plan,s.contract_rate,s.fallback_daily_rate,COALESCE(s.guest_count,1) guest_count,
+        COALESCE(sg.room_no,s.room_no) room_no,COALESCE(sg.room_type,s.room_type) room_type
+      FROM stays s LEFT JOIN stay_segments sg ON sg.id=(
+        SELECT x.id FROM stay_segments x WHERE x.stay_id=s.id AND x.start_date<=? AND (x.end_date IS NULL OR x.end_date>=?)
+        ORDER BY x.start_date DESC,x.id DESC LIMIT 1)
+      WHERE s.check_in_date<=? AND s.status IN ('active','checked_out') AND (s.actual_check_out_date IS NULL OR s.actual_check_out_date>?)
+      ORDER BY COALESCE(sg.room_no,s.room_no),s.id`).bind(date, date, date, date).all(),
+    env.DB.prepare('SELECT room_type,total_rooms FROM room_inventory').all(),
+    env.DB.prepare(`SELECT s.id,COALESCE(SUM(r.amount),0) room_revenue_total FROM stays s LEFT JOIN daily_room_revenue r ON r.stay_id=s.id AND r.revenue_date<=? GROUP BY s.id`).bind(date).all(),
+    env.DB.prepare(`SELECT COUNT(*) c FROM stays WHERE actual_check_out_date=? AND status='checked_out'`).bind(date).first()
+  ]);
+
+  const active = activeRs.results || [];
+  const totalGuests = active.reduce((sum, r) => sum + Math.max(1, int(r.guest_count, 1)), 0);
+  const occupiedRooms = new Set(active.map(r => String(r.room_no || '').trim()).filter(Boolean)).size;
+  const inv = invRs.results || [];
+  const totals = new Map(inv.map(r => [r.room_type, int(r.total_rooms)]));
+  const occupancy = ROOM_CATEGORIES.map(rt => {
+    const set = new Set(active.filter(r => canonicalRoomType(r.room_type) === rt).map(r => String(r.room_no || '').trim()).filter(Boolean));
+    const o = set.size, t = totals.get(rt) || 0;
+    return { room_type: rt, occupied_rooms: o, total_rooms: t, occupancy_rate: t > 0 ? o / t * 100 : null };
+  });
+
+  const rr = rrRs.results || [];
+  const rm = new Map(rr.map(r => [Number(r.id), num(r.room_revenue_total)]));
+  const activeWithRevenue = active.map(r => ({ ...r, room_revenue_total: rm.get(Number(r.id)) || 0 }));
+  const checkoutToday = checkoutTodayRow?.c || 0;
+
+  // Lấy biểu đồ 7 ngày bằng 2 query gộp thay vì lặp 7 lần gọi dailySummary
+  const start7 = addDays(date, -6);
+  const [room7Rs, svc7Rs] = await Promise.all([
+    env.DB.prepare(`SELECT revenue_date d, COALESCE(SUM(amount),0) room FROM daily_room_revenue WHERE revenue_date BETWEEN ? AND ? GROUP BY revenue_date`).bind(start7, date).all(),
+    env.DB.prepare(`SELECT service_date d, COALESCE(SUM(amount),0) service FROM services WHERE service_date BETWEEN ? AND ? GROUP BY service_date`).bind(start7, date).all()
+  ]);
+  const r7Map = new Map((room7Rs.results || []).map(r => [r.d, num(r.room)]));
+  const s7Map = new Map((svc7Rs.results || []).map(r => [r.d, num(r.service)]));
+  const points = [];
+  for (let x = 6; x >= 0; x--) {
+    const d = addDays(date, -x);
+    const rVal = r7Map.get(d) || 0;
+    const sVal = s7Map.get(d) || 0;
+    points.push({ date: d, room: rVal, service: sVal, total: rVal + sVal });
   }
-  return json({error:'Method not allowed'},405)
+
+  return json({ ok: true, date, daily, month, active_stays: activeWithRevenue, active_count: active.length, occupied_rooms: occupiedRooms, total_guests: totalGuests, checkout_today: checkoutToday, occupancy, points });
+}
+
+async function apiRoomInventory(request, env) {
+  await ensureHotelCapacitySchema(env);
+  if (request.method === 'GET') {
+    const rows = (await env.DB.prepare('SELECT room_type,total_rooms,updated_at FROM room_inventory ORDER BY room_type').all()).results || [];
+    return json({ ok: true, rows });
+  }
+  if (request.method === 'POST') {
+    if (!requirePin(request, env)) return json({ error: 'PIN quản lý không đúng.' }, 401);
+    const b = await request.json(), items = Array.isArray(b.items) ? b.items : [], ts = nowISO();
+    const stmts = ROOM_CATEGORIES.map(rt => {
+      const item = items.find(x => canonicalRoomType(x.room_type) === rt);
+      const total = Math.max(0, int(item?.total_rooms, 0));
+      return env.DB.prepare(`INSERT INTO room_inventory(room_type,total_rooms,updated_at) VALUES(?,?,?) ON CONFLICT(room_type) DO UPDATE SET total_rooms=excluded.total_rooms,updated_at=excluded.updated_at`).bind(rt, total, ts);
+    });
+    if (stmts.length > 0) await env.DB.batch(stmts);
+    return json({ ok: true });
+  }
+  return json({ error: 'Method not allowed' }, 405);
 }
 
 async function apiStays(request, env, url) {
   if (request.method === 'GET') {
     await ensureHotelCapacitySchema(env);
     await ensurePaymentSchema(env);
-    await ensureLedgerThrough(todayVN());
-    const status = clean(url.searchParams.get('status'),20);
-    const q = clean(url.searchParams.get('q'),80);
-    let sql=`SELECT s.*,
+    await ensureLedgerThrough(env, todayVN());
+    const status = clean(url.searchParams.get('status'), 20);
+    const q = clean(url.searchParams.get('q'), 80);
+    let sql = `SELECT s.*,
       COALESCE((SELECT SUM(r.amount) FROM daily_room_revenue r WHERE r.stay_id=s.id),0) room_total,
       COALESCE((SELECT SUM(v.amount) FROM services v WHERE v.stay_id=s.id),0) service_total,
       COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.stay_id=s.id),0) paid_total
-      FROM stays s WHERE 1=1`; const binds=[];
-    if(status){ sql+=' AND s.status=?'; binds.push(status); }
-    if(q){ sql+=' AND (s.guest_name LIKE ? OR s.room_no LIKE ? OR s.company_name LIKE ? OR s.code LIKE ?)'; const x=`%${q}%`; binds.push(x,x,x,x); }
-    sql+=' ORDER BY CASE s.status WHEN \'active\' THEN 0 ELSE 1 END, s.check_in_date DESC, s.id DESC LIMIT 300';
-    const rs=await env.DB.prepare(sql).bind(...binds).all();
-    const rows=(rs.results||[]).map(r=>({...r,charge_total:num(r.room_total)+num(r.service_total),balance:num(r.room_total)+num(r.service_total)-num(r.paid_total)}));
-    return json({ok:true, rows});
+      FROM stays s WHERE 1=1`;
+    const binds = [];
+    if (status) { sql += ' AND s.status=?'; binds.push(status); }
+    if (q) { sql += ' AND (s.guest_name LIKE ? OR s.room_no LIKE ? OR s.company_name LIKE ? OR s.code LIKE ?)'; const x = `%${q}%`; binds.push(x, x, x, x); }
+    sql += " ORDER BY CASE s.status WHEN 'active' THEN 0 ELSE 1 END, s.check_in_date DESC, s.id DESC LIMIT 300";
+    const rs = await env.DB.prepare(sql).bind(...binds).all();
+    const rows = (rs.results || []).map(r => ({
+      ...r,
+      charge_total: num(r.room_total) + num(r.service_total),
+      balance: num(r.room_total) + num(r.service_total) - num(r.paid_total)
+    }));
+    return json({ ok: true, rows });
   }
   if (request.method === 'POST') {
     await ensureHotelCapacitySchema(env);
-    const b=await request.json();
-    const guest=clean(b.guest_name,120), room=clean(b.room_no,30), ci=clean(b.check_in_date,10);
-    if(!guest||!room||!isDate(ci)) return json({error:'Thiếu tên khách, số phòng hoặc ngày check-in.'},400);
-    const plan=['daily','monthly','yearly'].includes(b.pricing_plan)?b.pricing_plan:'monthly';
-    const alloc=['actual_month_days','fixed_30','fixed_365'].includes(b.allocation_method)?b.allocation_method:'actual_month_days';
-    const ts=nowISO(), code=stayCode();
-    const rs=await env.DB.prepare(`INSERT INTO stays(code,guest_name,company_name,room_no,room_type,check_in_date,expected_check_out_date,pricing_plan,contract_rate,allocation_method,fallback_daily_rate,breakfast_guests,breakfast_rate,guest_count,payment_method,note,status,created_at,updated_at)
+    const b = await request.json();
+    const guest = clean(b.guest_name, 120), room = clean(b.room_no, 30), ci = normalizeDateParam(b.check_in_date);
+    if (!guest || !room || !isDate(ci)) return json({ error: 'Thiếu tên khách, số phòng hoặc ngày check-in.' }, 400);
+    const expCo = normalizeDateParam(b.expected_check_out_date);
+    const plan = ['daily', 'monthly', 'yearly'].includes(b.pricing_plan) ? b.pricing_plan : 'monthly';
+    const alloc = ['actual_month_days', 'fixed_30', 'fixed_365'].includes(b.allocation_method) ? b.allocation_method : 'actual_month_days';
+    const ts = nowISO(), code = stayCode();
+    const rs = await env.DB.prepare(`INSERT INTO stays(code,guest_name,company_name,room_no,room_type,check_in_date,expected_check_out_date,pricing_plan,contract_rate,allocation_method,fallback_daily_rate,breakfast_guests,breakfast_rate,guest_count,payment_method,note,status,created_at,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',?,?)`)
-      .bind(code,guest,clean(b.company_name,160),room,clean(b.room_type,80),ci,isDate(b.expected_check_out_date)?b.expected_check_out_date:null,plan,num(b.contract_rate),alloc,num(b.fallback_daily_rate),int(b.breakfast_guests),num(b.breakfast_rate,100000),Math.max(1,int(b.guest_count,1)),clean(b.payment_method,60),clean(b.note,800),ts,ts).run();
-    const id=rs.meta?.last_row_id;
+      .bind(code, guest, clean(b.company_name, 160), room, clean(b.room_type, 80), ci, isDate(expCo) ? expCo : null, plan, num(b.contract_rate), alloc, num(b.fallback_daily_rate), int(b.breakfast_guests), num(b.breakfast_rate, 100000), Math.max(1, int(b.guest_count, 1)), clean(b.payment_method, 60), clean(b.note, 800), ts, ts).run();
+    const id = rs.meta?.last_row_id;
     await ensureSegmentSchema(env);
     await env.DB.prepare(`INSERT INTO stay_segments(stay_id,start_date,end_date,room_no,room_type,pricing_plan,contract_rate,allocation_method,created_at)
       VALUES(?,?,?,?,?,?,?,?,?)`)
-      .bind(id,ci,null,room,clean(b.room_type,80),plan,num(b.contract_rate),alloc,ts).run();
+      .bind(id, ci, null, room, clean(b.room_type, 80), plan, num(b.contract_rate), alloc, ts).run();
+    await ensureLedgerForStayRange(env, id, ci, todayVN());
     await ensurePaymentSchema(env);
-    const initialAmount=num(b.initial_payment_amount);
-    if(initialAmount>0){
-      const kind=['deposit','payment'].includes(b.initial_payment_kind)?b.initial_payment_kind:'deposit';
-      const method=['cash','transfer','card'].includes(b.initial_payment_method)?b.initial_payment_method:'cash';
-      const pdate=isDate(b.initial_payment_date)?b.initial_payment_date:ci;
+    const initialAmount = num(b.initial_payment_amount);
+    if (initialAmount > 0) {
+      const kind = ['deposit', 'payment'].includes(b.initial_payment_kind) ? b.initial_payment_kind : 'deposit';
+      const method = ['cash', 'transfer', 'card'].includes(b.initial_payment_method) ? b.initial_payment_method : 'cash';
+      const pdate = normalizeDateParam(b.initial_payment_date) || ci;
       await env.DB.prepare('INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at) VALUES(?,?,?,?,?,?,?)')
-        .bind(id,pdate,kind,initialAmount,method,clean(b.initial_payment_note,300),nowISO()).run();
-      await updatePaymentStatus(env,id);
+        .bind(id, pdate, kind, initialAmount, method, clean(b.initial_payment_note, 300), nowISO()).run();
+      await updatePaymentStatus(env, id);
     }
-    await log(env,'create','stay',id,code);
-    return json({ok:true,id,code});
+    await log(env, 'create', 'stay', id, code);
+    return json({ ok: true, id, code });
   }
-  return json({error:'Method not allowed'},405);
+  return json({ error: 'Method not allowed' }, 405);
 }
 
 async function apiStayDetail(request, env, id) {
-  const stay=await getStay(env,id); if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
-  if(request.method==='GET') {
+  const stay = await getStay(env, id); if (!stay) return json({ error: 'Không tìm thấy lưu trú.' }, 404);
+  if (request.method === 'GET') {
     await ensureSegmentSchema(env);
-    const ledger=(await env.DB.prepare('SELECT * FROM daily_room_revenue WHERE stay_id=? ORDER BY revenue_date, id').bind(id).all()).results||[];
-    const services=(await env.DB.prepare('SELECT * FROM services WHERE stay_id=? ORDER BY service_date,id').bind(id).all()).results||[];
-    const segments=(await env.DB.prepare('SELECT * FROM stay_segments WHERE stay_id=? ORDER BY start_date,id').bind(id).all()).results||[];
     await ensurePaymentSchema(env);
-    const payments=(await env.DB.prepare('SELECT * FROM payments WHERE stay_id=? ORDER BY payment_date,id').bind(id).all()).results||[];
-    const financial=await financialSummary(env,stay,stay.actual_check_out_date||todayVN());
-    return json({ok:true,stay,ledger,services,payments,segments,financial});
+    const financial = await financialSummary(env, stay, stay.actual_check_out_date || todayVN());
+    const [ledgerRs, servicesRs, segmentsRs, paymentsRs] = await Promise.all([
+      env.DB.prepare('SELECT * FROM daily_room_revenue WHERE stay_id=? ORDER BY revenue_date, id').bind(id).all(),
+      env.DB.prepare('SELECT * FROM services WHERE stay_id=? ORDER BY service_date,id').bind(id).all(),
+      env.DB.prepare('SELECT * FROM stay_segments WHERE stay_id=? ORDER BY start_date,id').bind(id).all(),
+      env.DB.prepare('SELECT * FROM payments WHERE stay_id=? ORDER BY payment_date,id').bind(id).all()
+    ]);
+    return json({
+      ok: true, stay,
+      ledger: ledgerRs.results || [],
+      services: servicesRs.results || [],
+      payments: paymentsRs.results || [],
+      segments: segmentsRs.results || [],
+      financial
+    });
   }
-  if(request.method==='PATCH') {
-    const b=await request.json(); const ts=nowISO();
+  if (request.method === 'PATCH') {
+    const b = await request.json(); const ts = nowISO();
+    const expCo = normalizeDateParam(b.expected_check_out_date);
     await env.DB.prepare(`UPDATE stays SET guest_name=?,company_name=?,room_no=?,room_type=?,expected_check_out_date=?,pricing_plan=?,contract_rate=?,allocation_method=?,fallback_daily_rate=?,breakfast_guests=?,breakfast_rate=?,guest_count=?,payment_method=?,note=?,updated_at=? WHERE id=?`)
-      .bind(clean(b.guest_name||stay.guest_name,120),clean(b.company_name??stay.company_name,160),clean(b.room_no||stay.room_no,30),clean(b.room_type??stay.room_type,80),isDate(b.expected_check_out_date)?b.expected_check_out_date:null,['daily','monthly','yearly'].includes(b.pricing_plan)?b.pricing_plan:stay.pricing_plan,num(b.contract_rate,stay.contract_rate),['actual_month_days','fixed_30','fixed_365'].includes(b.allocation_method)?b.allocation_method:stay.allocation_method,num(b.fallback_daily_rate,stay.fallback_daily_rate),int(b.breakfast_guests,stay.breakfast_guests),num(b.breakfast_rate,stay.breakfast_rate),Math.max(1,int(b.guest_count,stay.guest_count||1)),clean(b.payment_method??stay.payment_method,60),clean(b.note??stay.note,800),ts,id).run();
-    await log(env,'update','stay',id,'Cập nhật thông tin lưu trú');
-    return json({ok:true});
+      .bind(clean(b.guest_name || stay.guest_name, 120), clean(b.company_name ?? stay.company_name, 160), clean(b.room_no || stay.room_no, 30), clean(b.room_type ?? stay.room_type, 80), isDate(expCo) ? expCo : null, ['daily', 'monthly', 'yearly'].includes(b.pricing_plan) ? b.pricing_plan : stay.pricing_plan, num(b.contract_rate, stay.contract_rate), ['actual_month_days', 'fixed_30', 'fixed_365'].includes(b.allocation_method) ? b.allocation_method : stay.allocation_method, num(b.fallback_daily_rate, stay.fallback_daily_rate), int(b.breakfast_guests, stay.breakfast_guests), num(b.breakfast_rate, stay.breakfast_rate), Math.max(1, int(b.guest_count, stay.guest_count || 1)), clean(b.payment_method ?? stay.payment_method, 60), clean(b.note ?? stay.note, 800), ts, id).run();
+    await log(env, 'update', 'stay', id, 'Cập nhật thông tin lưu trú');
+    return json({ ok: true });
   }
-  if(request.method==='DELETE') {
-    if(!requirePin(request,env)) return json({error:'Sai PIN quản lý.'},401);
+  if (request.method === 'DELETE') {
+    if (!requirePin(request, env)) return json({ error: 'Sai PIN quản lý.' }, 401);
     const closed = await env.DB.prepare(`SELECT dc.report_date FROM daily_room_revenue r JOIN day_closings dc ON dc.report_date=r.revenue_date WHERE r.stay_id=? LIMIT 1`).bind(id).first();
-    if(closed) return json({error:`Không thể xóa: lưu trú đã có doanh thu trong ngày ${closed.report_date} đã chốt.`},409);
+    if (closed) return json({ error: `Không thể xóa: lưu trú đã có doanh thu trong ngày ${closed.report_date} đã chốt.` }, 409);
     const svcClosed = await env.DB.prepare(`SELECT dc.report_date FROM services sv JOIN day_closings dc ON dc.report_date=sv.service_date WHERE sv.stay_id=? LIMIT 1`).bind(id).first();
-    if(svcClosed) return json({error:`Không thể xóa: lưu trú có dịch vụ trong ngày ${svcClosed.report_date} đã chốt.`},409);
-    await log(env,'delete','stay',id,JSON.stringify({code:stay.code,guest_name:stay.guest_name,room_no:stay.room_no}));
-    await env.DB.prepare('DELETE FROM services WHERE stay_id=?').bind(id).run();
+    if (svcClosed) return json({ error: `Không thể xóa: lưu trú có dịch vụ trong ngày ${svcClosed.report_date} đã chốt.` }, 409);
+    await log(env, 'delete', 'stay', id, JSON.stringify({ code: stay.code, guest_name: stay.guest_name, room_no: stay.room_no }));
     await ensurePaymentSchema(env);
-    await env.DB.prepare('DELETE FROM payments WHERE stay_id=?').bind(id).run();
-    await env.DB.prepare('DELETE FROM daily_room_revenue WHERE stay_id=?').bind(id).run();
     await ensureSegmentSchema(env);
-    await env.DB.prepare('DELETE FROM stay_segments WHERE stay_id=?').bind(id).run();
-    await env.DB.prepare('DELETE FROM stays WHERE id=?').bind(id).run();
-    return json({ok:true});
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM services WHERE stay_id=?').bind(id),
+      env.DB.prepare('DELETE FROM payments WHERE stay_id=?').bind(id),
+      env.DB.prepare('DELETE FROM daily_room_revenue WHERE stay_id=?').bind(id),
+      env.DB.prepare('DELETE FROM stay_segments WHERE stay_id=?').bind(id),
+      env.DB.prepare('DELETE FROM stays WHERE id=?').bind(id)
+    ]);
+    return json({ ok: true });
   }
-  return json({error:'Method not allowed'},405);
+  return json({ error: 'Method not allowed' }, 405);
 }
 
-
 async function apiTransferRoom(request, env, id) {
-  if(request.method!=='POST') return json({error:'Method not allowed'},405);
-  const stay=await getStay(env,id);
-  if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
-  if(stay.status!=='active') return json({error:'Chỉ chuyển phòng cho khách đang ở.'},409);
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  const stay = await getStay(env, id);
+  if (!stay) return json({ error: 'Không tìm thấy lưu trú.' }, 404);
+  if (stay.status !== 'active') return json({ error: 'Chỉ chuyển phòng cho khách đang ở.' }, 409);
 
-  const b=await request.json();
-  const transferDate=clean(b.transfer_date,10);
-  const newRoom=clean(b.new_room_no,30);
-  const newType=clean(b.new_room_type,80);
-  const newRate=num(b.new_contract_rate);
+  const b = await request.json();
+  const transferDate = normalizeDateParam(b.transfer_date);
+  const newRoom = clean(b.new_room_no, 30);
+  const newType = clean(b.new_room_type, 80);
+  const newRate = num(b.new_contract_rate);
 
-  if(!isDate(transferDate) || transferDate < stay.check_in_date || transferDate > todayVN())
-    return json({error:'Ngày chuyển phòng không hợp lệ.'},400);
-  if(!newRoom || !newType || newRate<=0)
-    return json({error:'Cần nhập phòng mới, hạng phòng mới và giá hợp đồng mới.'},400);
+  if (!isDate(transferDate) || transferDate < stay.check_in_date || transferDate > todayVN())
+    return json({ error: 'Ngày chuyển phòng không hợp lệ.' }, 400);
+  if (!newRoom || !newType || newRate <= 0)
+    return json({ error: 'Cần nhập phòng mới, hạng phòng mới và giá hợp đồng mới.' }, 400);
 
-  const closed=await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(transferDate).first();
-  if(closed) return json({error:'Ngày chuyển phòng đã chốt báo cáo. Không thể thay đổi hạng phòng của ngày đã chốt.'},409);
+  const closed = await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(transferDate).first();
+  if (closed) return json({ error: 'Ngày chuyển phòng đã chốt báo cáo. Không thể thay đổi hạng phòng của ngày đã chốt.' }, 409);
 
   await ensureSegmentSchema(env);
 
-  const current=await segmentForDate(env,stay,transferDate);
-  if(current && current.start_date===transferDate){
-    return json({error:'Ngày này đã bắt đầu một chặng phòng. Hãy kiểm tra lịch sử chuyển phòng.'},409);
+  const current = await segmentForDate(env, stay, transferDate);
+  if (current && current.start_date === transferDate) {
+    return json({ error: 'Ngày này đã bắt đầu một chặng phòng. Hãy kiểm tra lịch sử chuyển phòng.' }, 409);
   }
 
-  // Giữ nguyên toàn bộ số ngày lưu trú. Chỉ đóng chặng phòng cũ và mở chặng mới.
   await env.DB.prepare(`UPDATE stay_segments SET end_date=? WHERE stay_id=? AND start_date<? AND (end_date IS NULL OR end_date>=?)`)
-    .bind(addDays(transferDate,-1),id,transferDate,transferDate).run();
+    .bind(addDays(transferDate, -1), id, transferDate, transferDate).run();
 
-  const rs=await env.DB.prepare(`INSERT INTO stay_segments
+  const rs = await env.DB.prepare(`INSERT INTO stay_segments
     (stay_id,start_date,end_date,room_no,room_type,pricing_plan,contract_rate,allocation_method,created_at)
     VALUES(?,?,?,?,?,?,?,?,?)`)
-    .bind(id,transferDate,null,newRoom,newType,stay.pricing_plan,newRate,stay.allocation_method,nowISO()).run();
+    .bind(id, transferDate, null, newRoom, newType, stay.pricing_plan, newRate, stay.allocation_method, nowISO()).run();
 
-  // Snapshot các ngày trước chuyển phòng theo thông tin cũ nếu còn thiếu.
-  await env.DB.prepare(`UPDATE daily_room_revenue
-    SET room_no_snapshot=COALESCE(room_no_snapshot,?),room_type_snapshot=COALESCE(room_type_snapshot,?),
-        contract_rate_snapshot=COALESCE(contract_rate_snapshot,?)
-    WHERE stay_id=? AND revenue_date<? AND source_kind='accrual'`)
-    .bind(stay.room_no,stay.room_type,stay.contract_rate,id,transferDate).run();
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE daily_room_revenue
+      SET room_no_snapshot=COALESCE(room_no_snapshot,?),room_type_snapshot=COALESCE(room_type_snapshot,?),
+          contract_rate_snapshot=COALESCE(contract_rate_snapshot,?)
+      WHERE stay_id=? AND revenue_date<? AND source_kind='accrual'`)
+      .bind(stay.room_no, stay.room_type, stay.contract_rate, id, transferDate),
+    env.DB.prepare(`DELETE FROM daily_room_revenue
+      WHERE stay_id=? AND revenue_date>=? AND source_kind='accrual' AND locked=0`).bind(id, transferDate),
+    env.DB.prepare(`UPDATE stays SET room_no=?,room_type=?,contract_rate=?,updated_at=? WHERE id=?`)
+      .bind(newRoom, newType, newRate, nowISO(), id)
+  ]);
 
-  // Ngày chuyển phòng trở đi phải tính theo hạng/giá mới; chỉ xóa dòng chưa khóa.
-  await env.DB.prepare(`DELETE FROM daily_room_revenue
-    WHERE stay_id=? AND revenue_date>=? AND source_kind='accrual' AND locked=0`).bind(id,transferDate).run();
-
-  await env.DB.prepare(`UPDATE stays SET room_no=?,room_type=?,contract_rate=?,updated_at=? WHERE id=?`)
-    .bind(newRoom,newType,newRate,nowISO(),id).run();
-
-  await log(env,'room_transfer','stay',id,JSON.stringify({
-    transfer_date:transferDate,
-    from_room:stay.room_no,from_type:stay.room_type,from_rate:stay.contract_rate,
-    to_room:newRoom,to_type:newType,to_rate:newRate,
-    pricing_plan:stay.pricing_plan,allocation_method:stay.allocation_method
+  await log(env, 'room_transfer', 'stay', id, JSON.stringify({
+    transfer_date: transferDate,
+    from_room: stay.room_no, from_type: stay.room_type, from_rate: stay.contract_rate,
+    to_room: newRoom, to_type: newType, to_rate: newRate,
+    pricing_plan: stay.pricing_plan, allocation_method: stay.allocation_method
   }));
 
-  const freshStay=await getStay(env,id);
-  await ensureLedgerForStayRange(env,freshStay,transferDate,todayVN());
-  return json({ok:true,segment_id:rs.meta?.last_row_id,transfer_date:transferDate,new_room_no:newRoom,new_room_type:newType,new_contract_rate:newRate});
+  const freshStay = await getStay(env, id);
+  await ensureLedgerForStayRange(env, freshStay, transferDate, todayVN());
+  return json({ ok: true, segment_id: rs.meta?.last_row_id, transfer_date: transferDate, new_room_no: newRoom, new_room_type: newType, new_contract_rate: newRate });
 }
-
 
 async function apiStayPayments(request, env, id) {
-  const stay=await getStay(env,id);
-  if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
+  const stay = await getStay(env, id);
+  if (!stay) return json({ error: 'Không tìm thấy lưu trú.' }, 404);
   await ensurePaymentSchema(env);
-  if(request.method==='GET'){
-    const payments=(await env.DB.prepare('SELECT * FROM payments WHERE stay_id=? ORDER BY payment_date,id').bind(id).all()).results||[];
-    const financial=await financialSummary(env,stay,stay.actual_check_out_date||todayVN());
-    return json({ok:true,stay,payments,financial});
+  if (request.method === 'GET') {
+    const financial = await financialSummary(env, stay, stay.actual_check_out_date || todayVN());
+    const payments = (await env.DB.prepare('SELECT * FROM payments WHERE stay_id=? ORDER BY payment_date,id').bind(id).all()).results || [];
+    return json({ ok: true, stay, payments, financial });
   }
-  if(request.method==='POST'){
-    if(stay.status!=='active') return json({error:'Khách đã checkout. Lễ tân không ghi nhận thêm khoản thu sau checkout.'},409);
-    const b=await request.json();
-    const date=clean(b.payment_date,10), amount=num(b.amount);
-    const kind=['deposit','payment'].includes(b.payment_kind)?b.payment_kind:'payment';
-    const method=['cash','transfer','card'].includes(b.payment_method)?b.payment_method:'cash';
-    if(!isDate(date)||date<stay.check_in_date||date>todayVN()) return json({error:'Ngày thu tiền không hợp lệ.'},400);
-    if(amount<=0) return json({error:'Số tiền thu phải lớn hơn 0.'},400);
-    const rs=await env.DB.prepare(`INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at)
-      VALUES(?,?,?,?,?,?,?)`).bind(id,date,kind,amount,method,clean(b.note,300),nowISO()).run();
-    await updatePaymentStatus(env,id);
-    await log(env,'payment','stay',id,JSON.stringify({payment_id:rs.meta?.last_row_id,date,kind,amount,method}));
-    const fresh=await getStay(env,id);
-    const financial=await financialSummary(env,fresh,todayVN());
-    return json({ok:true,payment:{id:rs.meta?.last_row_id,payment_date:date,payment_kind:kind,amount,payment_method:method,note:clean(b.note,300)},financial});
+  if (request.method === 'POST') {
+    if (stay.status !== 'active') return json({ error: 'Khách đã checkout. Lễ tân không ghi nhận thêm khoản thu sau checkout.' }, 409);
+    const b = await request.json();
+    const date = normalizeDateParam(b.payment_date), amount = num(b.amount);
+    const kind = ['deposit', 'payment'].includes(b.payment_kind) ? b.payment_kind : 'payment';
+    const method = ['cash', 'transfer', 'card'].includes(b.payment_method) ? b.payment_method : 'cash';
+    if (!isDate(date) || date < stay.check_in_date || date > todayVN()) return json({ error: 'Ngày thu tiền không hợp lệ.' }, 400);
+    if (amount <= 0) return json({ error: 'Số tiền thu phải lớn hơn 0.' }, 400);
+    const rs = await env.DB.prepare(`INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at)
+      VALUES(?,?,?,?,?,?,?)`).bind(id, date, kind, amount, method, clean(b.note, 300), nowISO()).run();
+    await updatePaymentStatus(env, id);
+    await log(env, 'payment', 'stay', id, JSON.stringify({ payment_id: rs.meta?.last_row_id, date, kind, amount, method }));
+    const fresh = await getStay(env, id);
+    const financial = await financialSummary(env, fresh, todayVN());
+    return json({ ok: true, payment: { id: rs.meta?.last_row_id, payment_date: date, payment_kind: kind, amount, payment_method: method, note: clean(b.note, 300) }, financial });
   }
-  return json({error:'Method not allowed'},405);
+  return json({ error: 'Method not allowed' }, 405);
 }
+
 async function apiCheckoutPreview(request, env, id, url) {
-  const stay=await getStay(env,id);
-  if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
-  if(stay.status!=='active') return json({error:'Khách đã checkout.'},409);
-  const checkout=clean(url.searchParams.get('date'),10);
-  const mode=clean(url.searchParams.get('mode'),30)||'contract';
-  const fallback=num(url.searchParams.get('fallback_daily_rate'),stay.fallback_daily_rate);
-  const custom=num(url.searchParams.get('custom_total'));
-  if(!isDate(checkout)||checkout<stay.check_in_date||checkout>todayVN()) return json({error:'Ngày checkout không hợp lệ.'},400);
-  await ensureLedgerForStayRange(env,stay,stay.check_in_date,addDays(checkout,-1));
-  const recognizedRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM daily_room_revenue
-      WHERE stay_id=? AND revenue_date<? AND source_kind='accrual'`).bind(id,checkout).first();
-  const recognized=num(recognizedRow?.total), nights=Math.max(0,diffDays(stay.check_in_date,checkout));
-  let roomTarget=recognized;
-  if(mode==='fallback_daily') roomTarget=nights*fallback;
-  if(mode==='custom_total') roomTarget=custom;
-  const adjustment=roomTarget-recognized;
-  const svc=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM services WHERE stay_id=? AND service_date<=?`).bind(id,checkout).first();
-  const pay=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE stay_id=? AND payment_date<=?`).bind(id,checkout).first();
-  const serviceTotal=num(svc?.total), paidTotal=num(pay?.total), grandTotal=roomTarget+serviceTotal;
-  return json({ok:true,nights,recognized_room:recognized,room_target:roomTarget,adjustment,service_total:serviceTotal,grand_total:grandTotal,paid_total:paidTotal,remaining:grandTotal-paidTotal});
+  const stay = await getStay(env, id);
+  if (!stay) return json({ error: 'Không tìm thấy lưu trú.' }, 404);
+  if (stay.status !== 'active') return json({ error: 'Khách đã checkout.' }, 409);
+  const checkout = normalizeDateParam(url.searchParams.get('date'));
+  const mode = clean(url.searchParams.get('mode'), 30) || 'contract';
+  const fallback = num(url.searchParams.get('fallback_daily_rate'), stay.fallback_daily_rate);
+  const custom = num(url.searchParams.get('custom_total'));
+  if (!isDate(checkout) || checkout < stay.check_in_date || checkout > todayVN()) return json({ error: 'Ngày checkout không hợp lệ.' }, 400);
+  await ensurePaymentSchema(env);
+  await ensureLedgerForStayRange(env, stay, stay.check_in_date, addDays(checkout, -1));
+  const [recognizedRow, svc, pay] = await Promise.all([
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM daily_room_revenue
+      WHERE stay_id=? AND revenue_date<? AND source_kind='accrual'`).bind(id, checkout).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM services WHERE stay_id=? AND service_date<=?`).bind(id, checkout).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE stay_id=? AND payment_date<=?`).bind(id, checkout).first()
+  ]);
+  const recognized = num(recognizedRow?.total), nights = Math.max(0, diffDays(stay.check_in_date, checkout));
+  let roomTarget = recognized;
+  if (mode === 'fallback_daily') roomTarget = nights * fallback;
+  if (mode === 'custom_total') roomTarget = custom;
+  const adjustment = roomTarget - recognized;
+  const serviceTotal = num(svc?.total), paidTotal = num(pay?.total), grandTotal = roomTarget + serviceTotal;
+  return json({ ok: true, nights, recognized_room: recognized, room_target: roomTarget, adjustment, service_total: serviceTotal, grand_total: grandTotal, paid_total: paidTotal, remaining: grandTotal - paidTotal });
 }
+
 async function apiCheckout(request, env, id) {
-  if(request.method!=='POST') return json({error:'Method not allowed'},405);
-  const stay=await getStay(env,id); if(!stay) return json({error:'Không tìm thấy lưu trú.'},404);
-  if(stay.status==='checked_out') return json({error:'Khách đã checkout.'},400);
-  const b=await request.json(); const checkout=clean(b.actual_check_out_date,10);
-  if(!isDate(checkout)||checkout<=stay.check_in_date) return json({error:'Ngày checkout không hợp lệ.'},400);
-  if(checkout>todayVN()) return json({error:'Không thể checkout ở ngày tương lai.'},400);
-  const mode=['contract','fallback_daily','custom_total'].includes(b.settlement_mode)?b.settlement_mode:'contract';
-  await ensureLedgerForStayRange(env,stay,stay.check_in_date,addDays(checkout,-1));
-  // Nếu trước đây đã sinh accrual đúng ngày checkout thì loại bỏ để tránh trùng DailyPayment.
-  await env.DB.prepare(`DELETE FROM daily_room_revenue WHERE stay_id=? AND revenue_date=? AND source_kind='accrual' AND locked=0`).bind(id,checkout).run();
-  const recognizedRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) gross, COALESCE(SUM(breakfast_amount),0) breakfast FROM daily_room_revenue WHERE stay_id=? AND revenue_date<?`).bind(id,checkout).first();
-  const recognized=num(recognizedRow?.gross);
-  const nights=Math.max(0,diffDays(stay.check_in_date,checkout));
-  let target=recognized;
-  if(mode==='fallback_daily') target=nights*num(b.fallback_daily_rate ?? stay.fallback_daily_rate);
-  if(mode==='custom_total') target=num(b.custom_total);
-  const adjustment=target-recognized;
-  if(Math.abs(adjustment)>0.0001) {
-    const closed=await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(checkout).first();
-    if(closed) return json({error:'Ngày checkout đã chốt báo cáo. Hãy checkout vào ngày đang mở hoặc mở quy trình điều chỉnh sau chốt.'},409);
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  const stay = await getStay(env, id); if (!stay) return json({ error: 'Không tìm thấy lưu trú.' }, 404);
+  if (stay.status === 'checked_out') return json({ error: 'Khách đã checkout.' }, 400);
+  const b = await request.json(); const checkout = normalizeDateParam(b.actual_check_out_date);
+  if (!isDate(checkout) || checkout <= stay.check_in_date) return json({ error: 'Ngày checkout phải sau ngày check-in.' }, 400);
+  if (checkout > todayVN()) return json({ error: 'Không thể checkout ở ngày tương lai.' }, 400);
+  const mode = ['contract', 'fallback_daily', 'custom_total'].includes(b.settlement_mode) ? b.settlement_mode : 'contract';
+  await ensureLedgerForStayRange(env, stay, stay.check_in_date, addDays(checkout, -1));
+  await env.DB.prepare(`DELETE FROM daily_room_revenue WHERE stay_id=? AND revenue_date=? AND source_kind='accrual' AND locked=0`).bind(id, checkout).run();
+  const recognizedRow = await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) gross, COALESCE(SUM(breakfast_amount),0) breakfast FROM daily_room_revenue WHERE stay_id=? AND revenue_date<?`).bind(id, checkout).first();
+  const recognized = num(recognizedRow?.gross);
+  const nights = Math.max(0, diffDays(stay.check_in_date, checkout));
+  let target = recognized;
+  if (mode === 'fallback_daily') target = nights * num(b.fallback_daily_rate ?? stay.fallback_daily_rate);
+  if (mode === 'custom_total') target = num(b.custom_total);
+  const adjustment = target - recognized;
+  if (Math.abs(adjustment) > 0.0001) {
+    const closed = await env.DB.prepare('SELECT 1 x FROM day_closings WHERE report_date=?').bind(checkout).first();
+    if (closed) return json({ error: 'Ngày checkout đã chốt báo cáo. Hãy checkout vào ngày đang mở hoặc mở quy trình điều chỉnh sau chốt.' }, 409);
     await env.DB.prepare(`INSERT INTO daily_room_revenue(stay_id,revenue_date,source_kind,amount,breakfast_amount,net_room_amount,base_daily_rate,pricing_plan,allocation_method,description,locked,created_at)
       VALUES(?,?,?,?,0,?,?,?,?,?,0,?)
       ON CONFLICT(stay_id,revenue_date,source_kind) DO UPDATE SET amount=excluded.amount,net_room_amount=excluded.net_room_amount,description=excluded.description`)
-      .bind(id,checkout,'adjustment',adjustment,adjustment,0,stay.pricing_plan,stay.allocation_method,`Điều chỉnh checkout: ${mode}; ${nights} đêm; tổng quyết toán ${target.toFixed(0)}`,nowISO()).run();
+      .bind(id, checkout, 'adjustment', adjustment, adjustment, 0, stay.pricing_plan, stay.allocation_method, `Điều chỉnh checkout: ${mode}; ${nights} đêm; tổng quyết toán ${target.toFixed(0)}`, nowISO()).run();
   }
   await ensurePaymentSchema(env);
-  const serviceRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM services WHERE stay_id=? AND service_date<=?`).bind(id,checkout).first();
-  const paidBeforeRow=await env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE stay_id=? AND payment_date<=?`).bind(id,checkout).first();
-  const serviceTotal=num(serviceRow?.total), paidBefore=num(paidBeforeRow?.total);
-  const grandTotal=target+serviceTotal, remainingBefore=grandTotal-paidBefore;
-  const dpAmount=num(b.dailypayment_amount); let paymentId=null, dpMethod=null;
-  if(dpAmount>0){
-    dpMethod=['cash','transfer','card'].includes(b.dailypayment_method)?b.dailypayment_method:'cash';
-    const prs=await env.DB.prepare('INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at) VALUES(?,?,?,?,?,?,?)')
-      .bind(id,checkout,'dailypayment',dpAmount,dpMethod,clean(b.dailypayment_note,300),nowISO()).run();
-    paymentId=prs.meta?.last_row_id;
+  const [serviceRow, paidBeforeRow] = await Promise.all([
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM services WHERE stay_id=? AND service_date<=?`).bind(id, checkout).first(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE stay_id=? AND payment_date<=?`).bind(id, checkout).first()
+  ]);
+  const serviceTotal = num(serviceRow?.total), paidBefore = num(paidBeforeRow?.total);
+  const grandTotal = target + serviceTotal, remainingBefore = grandTotal - paidBefore;
+  const dpAmount = num(b.dailypayment_amount); let paymentId = null, dpMethod = null;
+  if (dpAmount > 0) {
+    dpMethod = ['cash', 'transfer', 'card'].includes(b.dailypayment_method) ? b.dailypayment_method : 'cash';
+    const prs = await env.DB.prepare('INSERT INTO payments(stay_id,payment_date,payment_kind,amount,payment_method,note,created_at) VALUES(?,?,?,?,?,?,?)')
+      .bind(id, checkout, 'dailypayment', dpAmount, dpMethod, clean(b.dailypayment_note, 300), nowISO()).run();
+    paymentId = prs.meta?.last_row_id;
   }
   await env.DB.prepare(`UPDATE stays SET actual_check_out_date=?,status='checked_out',payment_method=?,updated_at=? WHERE id=?`)
-    .bind(checkout,(remainingBefore-dpAmount)<=0?'Đã thanh toán':'Còn công nợ khi checkout',nowISO(),id).run();
-  await log(env,'checkout','stay',id,JSON.stringify({checkout,mode,nights,recognized,target,adjustment,serviceTotal,paidBefore,dpAmount}));
-  return json({ok:true,nights,recognized,target,adjustment,service_total:serviceTotal,grand_total:grandTotal,paid_before:paidBefore,dailypayment:dpAmount,balance:grandTotal-paidBefore-dpAmount,payment_id:paymentId,payment_method:dpMethod});
+    .bind(checkout, (remainingBefore - dpAmount) <= 0 ? 'Đã thanh toán' : 'Còn công nợ khi checkout', nowISO(), id).run();
+  await log(env, 'checkout', 'stay', id, JSON.stringify({ checkout, mode, nights, recognized, target, adjustment, serviceTotal, paidBefore, dpAmount }));
+  return json({ ok: true, nights, recognized, target, adjustment, service_total: serviceTotal, grand_total: grandTotal, paid_before: paidBefore, dailypayment: dpAmount, balance: grandTotal - paidBefore - dpAmount, payment_id: paymentId, payment_method: dpMethod });
 }
 
 async function apiServices(request, env, url) {
   await ensureServiceSchema(env);
-  if(request.method==='GET') {
-    const date=clean(url.searchParams.get('date'),10); const stayId=int(url.searchParams.get('stay_id'));
-    let sql='SELECT s.*, st.guest_name FROM services s LEFT JOIN stays st ON st.id=s.stay_id WHERE 1=1'; const binds=[];
-    if(isDate(date)){sql+=' AND s.service_date=?';binds.push(date);} if(stayId){sql+=' AND s.stay_id=?';binds.push(stayId);} sql+=' ORDER BY s.service_date DESC,s.id DESC LIMIT 500';
-    const rs=await env.DB.prepare(sql).bind(...binds).all(); return json({ok:true,rows:rs.results||[]});
+  if (request.method === 'GET') {
+    const date = normalizeDateParam(url.searchParams.get('date')); const stayId = int(url.searchParams.get('stay_id'));
+    let sql = 'SELECT s.*, st.guest_name FROM services s LEFT JOIN stays st ON st.id=s.stay_id WHERE 1=1'; const binds = [];
+    if (isDate(date)) { sql += ' AND s.service_date=?'; binds.push(date); }
+    if (stayId) { sql += ' AND s.stay_id=?'; binds.push(stayId); }
+    sql += ' ORDER BY s.service_date DESC,s.id DESC LIMIT 500';
+    const rs = await env.DB.prepare(sql).bind(...binds).all(); return json({ ok: true, rows: rs.results || [] });
   }
-  if(request.method==='POST') {
-    const b=await request.json(); const date=clean(b.service_date,10), cat=clean(b.category,40);
-    const qty=Math.max(0,num(b.quantity,1)), unit=Math.max(0,num(b.unit_price));
-    const amount=Math.max(0,num(b.amount,qty*unit));
-    if(!isDate(date)||!SERVICE_CATEGORIES.has(cat)||qty<=0||unit<0||amount<=0) return json({error:'Dữ liệu vé/dịch vụ không hợp lệ.'},400);
-    const stayId=int(b.stay_id)||null; let room=clean(b.room_no,30);
-    if(stayId){
-      const st=await getStay(env,stayId);
-      if(st){
-        const seg=await segmentForDate(env,st,date);
-        room=seg.room_no;
+  if (request.method === 'POST') {
+    const b = await request.json(); const date = normalizeDateParam(b.service_date), cat = clean(b.category, 40);
+    const qty = Math.max(0, num(b.quantity, 1)), unit = Math.max(0, num(b.unit_price));
+    const amount = Math.max(0, num(b.amount, qty * unit));
+    if (!isDate(date) || !SERVICE_CATEGORIES.has(cat) || qty <= 0 || unit < 0 || amount <= 0) return json({ error: 'Dữ liệu vé/dịch vụ không hợp lệ.' }, 400);
+    const stayId = int(b.stay_id) || null; let room = clean(b.room_no, 30);
+    if (stayId) {
+      const st = await getStay(env, stayId);
+      if (st) {
+        const seg = await segmentForDate(env, st, date);
+        room = seg.room_no;
       }
     }
-    const rs=await env.DB.prepare('INSERT INTO services(stay_id,service_date,room_no,category,quantity,unit_price,amount,note,payment_method,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(stayId,date,room,cat,qty,unit,amount,clean(b.note,500),clean(b.payment_method,60),nowISO()).run();
-    await log(env,'create','service',rs.meta?.last_row_id,JSON.stringify({cat,qty,unit,amount})); return json({ok:true,id:rs.meta?.last_row_id});
+    const rs = await env.DB.prepare('INSERT INTO services(stay_id,service_date,room_no,category,quantity,unit_price,amount,note,payment_method,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(stayId, date, room, cat, qty, unit, amount, clean(b.note, 500), clean(b.payment_method, 60), nowISO()).run();
+    await log(env, 'create', 'service', rs.meta?.last_row_id, JSON.stringify({ cat, qty, unit, amount })); return json({ ok: true, id: rs.meta?.last_row_id });
   }
-  return json({error:'Method not allowed'},405);
+  return json({ error: 'Method not allowed' }, 405);
 }
 
 async function apiDailyReport(request, env, url) {
-  const date=normalizeDateParam(url.searchParams.get('date'))||todayVN();
-  const roomType=clean(url.searchParams.get('room_type'),80);
+  const date = normalizeDateParam(url.searchParams.get('date')) || todayVN();
+  const roomType = clean(url.searchParams.get('room_type'), 80);
 
-  await ensureLedgerForDate(env,date);
+  await ensureLedgerForDate(env, date);
   await ensureSegmentSchema(env);
 
-  let rows;
-  if(roomType){
-    rows=(await env.DB.prepare(`SELECT r.*,s.code,s.guest_name,s.company_name,
+  let rowsPromise;
+  if (roomType) {
+    rowsPromise = env.DB.prepare(`SELECT r.*,s.code,s.guest_name,s.company_name,
       COALESCE(r.room_no_snapshot,s.room_no) room_no,
       COALESCE(r.room_type_snapshot,s.room_type) room_type,
       s.check_in_date,s.expected_check_out_date,s.actual_check_out_date,s.breakfast_guests,s.payment_method
       FROM daily_room_revenue r JOIN stays s ON s.id=r.stay_id
       WHERE r.revenue_date=? AND LOWER(TRIM(COALESCE(r.room_type_snapshot,s.room_type)))=LOWER(TRIM(?))
-      ORDER BY COALESCE(r.room_no_snapshot,s.room_no),r.source_kind`).bind(date,roomType).all()).results||[];
+      ORDER BY COALESCE(r.room_no_snapshot,s.room_no),r.source_kind`).bind(date, roomType).all();
   } else {
-    rows=(await env.DB.prepare(`SELECT r.*,s.code,s.guest_name,s.company_name,
+    rowsPromise = env.DB.prepare(`SELECT r.*,s.code,s.guest_name,s.company_name,
       COALESCE(r.room_no_snapshot,s.room_no) room_no,
       COALESCE(r.room_type_snapshot,s.room_type) room_type,
       s.check_in_date,s.expected_check_out_date,s.actual_check_out_date,s.breakfast_guests,s.payment_method
       FROM daily_room_revenue r JOIN stays s ON s.id=r.stay_id WHERE r.revenue_date=?
-      ORDER BY COALESCE(r.room_no_snapshot,s.room_no),r.source_kind`).bind(date).all()).results||[];
+      ORDER BY COALESCE(r.room_no_snapshot,s.room_no),r.source_kind`).bind(date).all();
   }
-  const baseSummary=await dailySummary(env,date);
-  const roomGross=rows.reduce((a,r)=>a+num(r.amount),0), breakfast=rows.reduce((a,r)=>a+num(r.breakfast_amount),0), roomNet=rows.reduce((a,r)=>a+num(r.net_room_amount),0), adjustment=rows.filter(r=>r.source_kind==='adjustment').reduce((a,r)=>a+num(r.net_room_amount),0);
-  const summary=roomType?{...baseSummary,room:{...baseSummary.room,room_gross:roomGross,breakfast,room_net:roomNet,adjustment},total:roomGross+num(baseSummary.services.total)}:baseSummary;
-  const services=(await env.DB.prepare(`SELECT sv.*,st.guest_name,st.company_name FROM services sv LEFT JOIN stays st ON st.id=sv.stay_id WHERE sv.service_date=? ORDER BY sv.room_no,sv.id`).bind(date).all()).results||[];
-  return json({ok:true,live:!summary.closing,summary,rows,services});
+
+  const [rowsRs, baseSummary, servicesRs] = await Promise.all([
+    rowsPromise,
+    dailySummary(env, date, true),
+    env.DB.prepare(`SELECT sv.*,st.guest_name,st.company_name FROM services sv LEFT JOIN stays st ON st.id=sv.stay_id WHERE sv.service_date=? ORDER BY sv.room_no,sv.id`).bind(date).all()
+  ]);
+
+  const rows = rowsRs.results || [];
+  const services = servicesRs.results || [];
+  const roomGross = rows.reduce((a, r) => a + num(r.amount), 0),
+        breakfast = rows.reduce((a, r) => a + num(r.breakfast_amount), 0),
+        roomNet = rows.reduce((a, r) => a + num(r.net_room_amount), 0),
+        adjustment = rows.filter(r => r.source_kind === 'adjustment').reduce((a, r) => a + num(r.net_room_amount), 0);
+  const summary = roomType ? { ...baseSummary, room: { ...baseSummary.room, room_gross: roomGross, breakfast, room_net: roomNet, adjustment }, total: roomGross + num(baseSummary.services.total) } : baseSummary;
+  return json({ ok: true, live: !summary.closing, summary, rows, services });
 }
 
 async function apiCloseDay(request, env) {
-  if(request.method!=='POST') return json({error:'Method not allowed'},405);
-  if(!requirePin(request,env)) return json({error:'Sai PIN quản lý.'},401);
-  const b=await request.json(); const date=clean(b.report_date,10); if(!isDate(date)) return json({error:'Ngày không hợp lệ.'},400);
-  const existing=await env.DB.prepare('SELECT * FROM day_closings WHERE report_date=?').bind(date).first(); if(existing) return json({error:'Ngày này đã chốt.'},409);
-  const s=await dailySummary(env,date);
-  await env.DB.prepare(`INSERT INTO day_closings(report_date,room_revenue,adjustment,service_revenue,total_revenue,closed_by,closed_at,note) VALUES(?,?,?,?,?,?,?,?)`)
-    .bind(date,num(s.room.room_base),num(s.room.adjustment),num(s.services.total)+num(s.room.breakfast),num(s.total),clean(b.closed_by,80),nowISO(),clean(b.note,500)).run();
-  await env.DB.prepare('UPDATE daily_room_revenue SET locked=1 WHERE revenue_date=?').bind(date).run();
-  await log(env,'close_day','report',date,`Total ${s.total}`); return json({ok:true,summary:s});
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (!requirePin(request, env)) return json({ error: 'Sai PIN quản lý.' }, 401);
+  const b = await request.json(); const date = normalizeDateParam(b.report_date); if (!isDate(date)) return json({ error: 'Ngày không hợp lệ.' }, 400);
+  const existing = await env.DB.prepare('SELECT * FROM day_closings WHERE report_date=?').bind(date).first(); if (existing) return json({ error: 'Ngày này đã chốt.' }, 409);
+  const s = await dailySummary(env, date);
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO day_closings(report_date,room_revenue,adjustment,service_revenue,total_revenue,closed_by,closed_at,note) VALUES(?,?,?,?,?,?,?,?)`)
+      .bind(date, num(s.room.room_base), num(s.room.adjustment), num(s.services.total) + num(s.room.breakfast), num(s.total), clean(b.closed_by, 80), nowISO(), clean(b.note, 500)),
+    env.DB.prepare('UPDATE daily_room_revenue SET locked=1 WHERE revenue_date=?').bind(date)
+  ]);
+  await log(env, 'close_day', 'report', date, `Total ${s.total}`); return json({ ok: true, summary: s });
 }
 
 async function apiMonthReport(request, env, url) {
-  const ym=/^\d{4}-\d{2}$/.test(url.searchParams.get('month')||'')?url.searchParams.get('month'):todayVN().slice(0,7);
-  const summary=await monthSummary(env,ym);
-  const daily=(await env.DB.prepare(`WITH d AS (
+  const ym = /^\d{4}-\d{2}$/.test(url.searchParams.get('month') || '') ? url.searchParams.get('month') : todayVN().slice(0, 7);
+  const summary = await monthSummary(env, ym);
+  const daily = (await env.DB.prepare(`WITH d AS (
       SELECT revenue_date date, SUM(amount) room_gross, SUM(net_room_amount) room_net, SUM(breakfast_amount) breakfast,
       SUM(CASE WHEN source_kind='adjustment' THEN net_room_amount ELSE 0 END) adjustment
       FROM daily_room_revenue WHERE revenue_date BETWEEN ? AND ? GROUP BY revenue_date),
@@ -704,51 +878,52 @@ async function apiMonthReport(request, env, url) {
     FROM d LEFT JOIN s ON s.date=d.date
     UNION ALL
     SELECT s.date,0,0,0,0,s.service_total,s.pool_total,s.other_service_total FROM s LEFT JOIN d ON d.date=s.date WHERE d.date IS NULL
-    ORDER BY date`).bind(summary.start,summary.end,summary.start,summary.end).all()).results||[];
-  return json({ok:true,month:ym,summary,daily});
+    ORDER BY date`).bind(summary.start, summary.end, summary.start, summary.end).all()).results || [];
+  return json({ ok: true, month: ym, summary, daily });
 }
 
 async function apiExportDaily(env, url) {
-  const date=normalizeDateParam(url.searchParams.get('date'))||todayVN();
-  const roomType=clean(url.searchParams.get('room_type'),80);
+  const date = normalizeDateParam(url.searchParams.get('date')) || todayVN();
+  const roomType = clean(url.searchParams.get('room_type'), 80);
+  await ensureLedgerForDate(env, date);
   await ensureSegmentSchema(env);
-  let sql=`SELECT COALESCE(r.room_no_snapshot,s.room_no) room_no,
+  let sql = `SELECT COALESCE(r.room_no_snapshot,s.room_no) room_no,
     COALESCE(r.room_type_snapshot,s.room_type) room_type,
     s.guest_name,s.company_name,s.check_in_date,s.actual_check_out_date,
     r.source_kind,r.amount,r.breakfast_amount,r.net_room_amount,r.description
     FROM daily_room_revenue r JOIN stays s ON s.id=r.stay_id WHERE r.revenue_date=?`;
-  const binds=[date];
-  if(roomType){sql+=' AND LOWER(TRIM(COALESCE(r.room_type_snapshot,s.room_type)))=LOWER(TRIM(?))';binds.push(roomType);}
-  sql+=' ORDER BY COALESCE(r.room_no_snapshot,s.room_no),r.source_kind';
-  const rows=(await env.DB.prepare(sql).bind(...binds).all()).results||[];
-  const esc=v=>`"${String(v??'').replaceAll('"','""')}"`;
-  const lines=[['Phòng','Loại phòng','Khách','Công ty','Check-in','Checkout','Loại dòng','Tổng phân bổ','Điểm tâm','DTKS','Ghi chú'].map(esc).join(',')];
-  for(const r of rows) lines.push([r.room_no,r.room_type,r.guest_name,r.company_name,r.check_in_date,r.actual_check_out_date,r.source_kind,r.amount,r.breakfast_amount,r.net_room_amount,r.description].map(esc).join(','));
-  return new Response('\uFEFF'+lines.join('\r\n'),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="bao-cao-doanh-thu-${date}.csv"`}});
+  const binds = [date];
+  if (roomType) { sql += ' AND LOWER(TRIM(COALESCE(r.room_type_snapshot,s.room_type)))=LOWER(TRIM(?))'; binds.push(roomType); }
+  sql += ' ORDER BY COALESCE(r.room_no_snapshot,s.room_no),r.source_kind';
+  const rows = (await env.DB.prepare(sql).bind(...binds).all()).results || [];
+  const esc = v => `"${String(v ?? '').replaceAll('"', '""')}"`;
+  const lines = [['Phòng', 'Loại phòng', 'Khách', 'Công ty', 'Check-in', 'Checkout', 'Loại dòng', 'Tổng phân bổ', 'Điểm tâm', 'DTKS', 'Ghi chú'].map(esc).join(',')];
+  for (const r of rows) lines.push([r.room_no, r.room_type, r.guest_name, r.company_name, r.check_in_date, r.actual_check_out_date, r.source_kind, r.amount, r.breakfast_amount, r.net_room_amount, r.description].map(esc).join(','));
+  return new Response('\uFEFF' + lines.join('\r\n'), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="bao-cao-doanh-thu-${date}.csv"` } });
 }
 
 async function route(request, env) {
-  const url=new URL(request.url); const p=url.pathname;
-  if(p==='/api/dashboard') return apiDashboard(request,env,url);
-  if(p==='/api/room-inventory') return apiRoomInventory(request,env);
-  if(p==='/api/stays') return apiStays(request,env,url);
-  let m=p.match(/^\/api\/stays\/(\d+)\/payments$/); if(m) return apiStayPayments(request,env,int(m[1]));
-  m=p.match(/^\/api\/stays\/(\d+)\/checkout-preview$/); if(m) return apiCheckoutPreview(request,env,int(m[1]),url);
-  m=p.match(/^\/api\/stays\/(\d+)\/transfer-room$/); if(m) return apiTransferRoom(request,env,int(m[1]));
-  m=p.match(/^\/api\/stays\/(\d+)\/checkout$/); if(m) return apiCheckout(request,env,int(m[1]));
-  m=p.match(/^\/api\/stays\/(\d+)$/); if(m) return apiStayDetail(request,env,int(m[1]));
-  if(p==='/api/services') return apiServices(request,env,url);
-  if(p==='/api/reports/daily') return apiDailyReport(request,env,url);
-  if(p==='/api/reports/month') return apiMonthReport(request,env,url);
-  if(p==='/api/reports/close-day') return apiCloseDay(request,env);
-  if(p==='/api/reports/daily.csv') return apiExportDaily(env,url);
-  if(p==='/api/health') return json({ok:true,date:todayVN()});
+  const url = new URL(request.url); const p = url.pathname;
+  if (p === '/api/dashboard') return apiDashboard(request, env, url);
+  if (p === '/api/room-inventory') return apiRoomInventory(request, env);
+  if (p === '/api/stays') return apiStays(request, env, url);
+  let m = p.match(/^\/api\/stays\/(\d+)\/payments$/); if (m) return apiStayPayments(request, env, int(m[1]));
+  m = p.match(/^\/api\/stays\/(\d+)\/checkout-preview$/); if (m) return apiCheckoutPreview(request, env, int(m[1]), url);
+  m = p.match(/^\/api\/stays\/(\d+)\/transfer-room$/); if (m) return apiTransferRoom(request, env, int(m[1]));
+  m = p.match(/^\/api\/stays\/(\d+)\/checkout$/); if (m) return apiCheckout(request, env, int(m[1]));
+  m = p.match(/^\/api\/stays\/(\d+)$/); if (m) return apiStayDetail(request, env, int(m[1]));
+  if (p === '/api/services') return apiServices(request, env, url);
+  if (p === '/api/reports/daily') return apiDailyReport(request, env, url);
+  if (p === '/api/reports/month') return apiMonthReport(request, env, url);
+  if (p === '/api/reports/close-day') return apiCloseDay(request, env);
+  if (p === '/api/reports/daily.csv') return apiExportDaily(env, url);
+  if (p === '/api/health') return json({ ok: true, date: todayVN() });
   return env.ASSETS.fetch(request);
 }
 
 export default {
   async fetch(request, env) {
-    try { return await route(request,env); }
-    catch(e){ console.error(e); return json({error:e?.message||String(e)},500); }
+    try { return await route(request, env); }
+    catch (e) { console.error(e); return json({ error: e?.message || String(e) }, 500); }
   }
 };
